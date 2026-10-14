@@ -25,6 +25,10 @@ package apps
 	// artifact carries user applications.
 	controllers: ["flux", "argo"]
 
+	// Publish artifacts and open release PRs. Off for clusters that exist only
+	// as manifests (rendered and diffed in PRs, never deployed).
+	publish: *true | bool
+
 	// Version channel, see registry.#Resolve.
 	channel: *"fast" | "stable"
 

@@ -26,7 +26,7 @@ import "github.com/selfuryon/awesome-cue-infra/apps"
 		}
 		manifests: scoped: (#namespace): {
 			deployment: whoami: spec: {
-				replicas: 1
+				replicas: *1 | int
 				selector: matchLabels: _labels
 				template: {
 					metadata: labels: _labels

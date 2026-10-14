@@ -1,0 +1,139 @@
+name: Publish
+
+# Publishes changed artifacts to GHCR and opens a release PR per cluster that
+# points the cluster at them. Merging a release PR is what deploys; it touches
+# only releases.json and the release layer, which are not part of any
+# artifact, so its own publish run is a no-op.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      artifacts: ${{ steps.list.outputs.artifacts }}
+      clusters: ${{ steps.list.outputs.clusters }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: List artifacts and clusters
+        id: list
+        run: |
+          echo "artifacts=$(nix develop .#ci -c cue cmd list-artifacts)" >> "$GITHUB_OUTPUT"
+          echo "clusters=$(nix develop .#ci -c cue cmd list-clusters)" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+      id-token: write # keyless cosign signing
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.artifacts) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: Publish
+        run: |
+          mkdir -p "${RUNNER_TEMP}/results"
+          nix develop .#ci -c bash -c '
+            set -euo pipefail
+            echo "$GITHUB_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            scripts/publish.sh "$MATRIX_CLUSTER" "$MATRIX_PROJECT"
+          ' > "${RUNNER_TEMP}/results/${MATRIX_CLUSTER}-${MATRIX_PROJECT}.json"
+          cat "${RUNNER_TEMP}/results/${MATRIX_CLUSTER}-${MATRIX_PROJECT}.json"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MATRIX_CLUSTER: ${{ matrix.cluster }}
+          MATRIX_PROJECT: ${{ matrix.project }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: result-${{ matrix.cluster }}-${{ matrix.project }}
+          path: ${{ runner.temp }}/results/${{ matrix.cluster }}-${{ matrix.project }}.json
+
+  release:
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cluster: ${{ fromJson(needs.prepare.outputs.clusters) }}
+      fail-fast: false
+    steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }} # zizmor: ignore[secrets-outside-env]
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: result-${{ matrix.cluster }}-*
+          path: ${{ runner.temp }}/results
+          merge-multiple: true
+
+      - name: Update release layer
+        id: release
+        run: |
+          nix develop .#ci -c bash scripts/release.sh "${RUNNER_TEMP}/results"
+          {
+            echo "auto-merge=$(nix develop .#ci -c cue cmd cluster-config -t cluster="$MATRIX_CLUSTER" | jq -r --arg c "$MATRIX_CLUSTER" '.[$c].release.autoMerge')"
+            echo "body<<EOF"
+            echo "Points \`${MATRIX_CLUSTER}\` at the artifacts published from ${GITHUB_SHA}."
+            echo
+            echo '```diff'
+            git diff -- "clusters/${MATRIX_CLUSTER}/releases.json"
+            echo '```'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+        env:
+          MATRIX_CLUSTER: ${{ matrix.cluster }}
+
+      - name: Open release PR
+        id: pr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          branch: release/${{ matrix.cluster }}
+          sign-commits: true
+          delete-branch: true
+          add-paths: |
+            clusters/${{ matrix.cluster }}/releases.json
+            clusters/${{ matrix.cluster }}/release/**
+          title: "release(${{ matrix.cluster }}): switch to new artifacts"
+          commit-message: "release(${{ matrix.cluster }}): switch to new artifacts"
+          body: ${{ steps.release.outputs.body }}
+          labels: release
+
+      - name: Enable auto-merge
+        if: steps.pr.outputs.pull-request-number != '' && steps.release.outputs.auto-merge == 'true'
+        run: gh pr merge --auto --squash "$PR"
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}

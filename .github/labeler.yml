@@ -1,0 +1,21 @@
+apps:
+  - changed-files:
+      - any-glob-to-any-file: "apps/**"
+clusters:
+  - changed-files:
+      - any-glob-to-any-file: "clusters/**"
+talos:
+  - changed-files:
+      - any-glob-to-any-file: "clusters/*/talos/**"
+secrets:
+  - changed-files:
+      - any-glob-to-any-file: "clusters/*/secrets/**"
+crd:
+  - changed-files:
+      - any-glob-to-any-file: "crd/**"
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+nix:
+  - changed-files:
+      - any-glob-to-any-file: ["nix/**", "flake.nix", "flake.lock"]

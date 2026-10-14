@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "3 days",
+  "semanticCommits": "enabled",
+  "commitMessagePrefix": "chore(deps):",
+  "dependencyDashboard": true,
+  "labels": ["renovate"],
+  "customManagers": [
+    {
+      "description": "Component versions in the flex channel. Each entry names its Renovate datasource and package; helm entries also carry the repository URL.",
+      "customType": "regex",
+      "managerFilePatterns": ["/apps/registry/latest\\.json$/"],
+      "matchStrings": [
+        "\"datasource\":\\s*\"(?<datasource>[^\"]+)\",\\s*\"package\":\\s*\"(?<depName>[^\"]+)\",(?:\\s*\"registry\":\\s*\"(?<registryUrl>[^\"]+)\",)?\\s*\"version\":\\s*\"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDepTypes": ["action"],
+      "pinDigests": true
+    },
+    {
+      "description": "Auto-merge everything but major updates once final-check is green; majors wait for a human.",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest", "pinDigest"],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      "description": "0.x versions treat minor bumps as breaking.",
+      "matchCurrentVersion": "/^v?0\\./",
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "minimumReleaseAge": null,
+    "labels": ["renovate", "security"]
+  }
+}

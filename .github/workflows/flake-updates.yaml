@@ -1,0 +1,68 @@
+name: Flake Updates
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 10 * * 1" # https://crontab.guru/#0_10_*_*_1
+
+permissions:
+  contents: read
+
+jobs:
+  update-inputs:
+    runs-on: ubuntu-latest
+    steps:
+      # An App token, not GITHUB_TOKEN: PRs opened with GITHUB_TOKEN do not
+      # trigger CI, so auto-merge would wait forever for final-check.
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }} # zizmor: ignore[secrets-outside-env]
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+
+      - name: Update flake.lock
+        run: |
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          nix --option commit-lockfile-summary "chore: update flake.lock" flake update --commit-lock-file
+
+      - name: Check the devshells still build
+        run: nix develop .#ci -c cue version
+
+      - name: Process commit message
+        run: |
+          {
+            echo "Update flake inputs:"
+            echo '```'
+            git log -1 --no-merges --pretty=%B
+            echo '```'
+          } > "${RUNNER_TEMP}/pr_body.txt"
+
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        id: pr
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          branch: chore/flake-update
+          sign-commits: true
+          delete-branch: true
+          title: "chore: update flake.lock"
+          body-path: ${{ runner.temp }}/pr_body.txt
+          commit-message: "chore: update flake.lock"
+          labels: nix
+
+      - name: Enable auto-merge
+        if: steps.pr.outputs.pull-request-number != ''
+        run: gh pr merge --auto --squash "$PR"
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}

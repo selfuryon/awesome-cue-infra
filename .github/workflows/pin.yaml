@@ -1,0 +1,65 @@
+name: Pin
+
+# Pins component versions for a cluster: copies the current versions from
+# apps/registry/latest.json into clusters/<cluster>/pins.json via a PR. This
+# is how stable-channel clusters move forward (fast ones follow latest.json).
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster:
+        description: "Cluster to pin"
+        required: true
+      components:
+        description: "Comma-separated component names (empty = every component in latest.json)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }} # zizmor: ignore[secrets-outside-env]
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Copy versions
+        run: |
+          file="clusters/${CLUSTER}/pins.json"
+          if [[ ! -f "$file" ]]; then
+            echo "::error::unknown cluster ${CLUSTER}"
+            exit 1
+          fi
+          jq --arg only "$COMPONENTS" --slurpfile latest apps/registry/latest.json '
+            ($only | split(",") | map(select(length > 0))) as $names
+            | reduce $latest[0].components[] as $c (.;
+                if ($names | length) == 0 or ($names | index($c.name)) then .[$c.name] = $c.version else . end)
+          ' "$file" > "$file.tmp"
+          mv "$file.tmp" "$file"
+          git diff
+        env:
+          CLUSTER: ${{ inputs.cluster }}
+          COMPONENTS: ${{ inputs.components }}
+
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          branch: chore/pin-${{ inputs.cluster }}
+          sign-commits: true
+          delete-branch: true
+          add-paths: clusters/${{ inputs.cluster }}/pins.json
+          title: "chore(${{ inputs.cluster }}): pin component versions"
+          commit-message: "chore(${{ inputs.cluster }}): pin component versions"
+          labels: pin

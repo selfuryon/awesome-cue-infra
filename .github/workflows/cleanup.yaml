@@ -1,0 +1,39 @@
+name: Registry Cleanup
+
+# Prunes old artifact versions from GHCR (see scripts/ghcr-cleanup.sh).
+# Each package needs this repository granted the Admin role under
+# "Manage Actions access" so GITHUB_TOKEN may delete versions.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Only list what would be deleted"
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 4 * * 0" # https://crontab.guru/#0_4_*_*_0
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: Prune
+        run: nix develop .#ci -c bash scripts/ghcr-cleanup.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          PREFIX: ${{ github.event.repository.name }}
+          KEEP: "10"
+          # Scheduled runs delete; manual runs follow the input.
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry-run) && '1' || '0' }}

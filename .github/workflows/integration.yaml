@@ -1,97 +1,196 @@
 name: Integration
 
 on:
-  workflow_dispatch:
   pull_request:
-    types: [opened, synchronize]
-  push:
-    branches:
-      - main
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
-  nix-check-matrix:
+  # Formatting and lint hooks (treefmt, pre-commit) without the devshell.
+  nix-flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: Build checks
+        run: nix build .#checks.x86_64-linux.pre-commit .#checks.x86_64-linux.treefmt
+
+  cue-vet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: Run CUE validation
+        run: nix develop .#ci -c bash .github/cue-vet.bash
+
+  # The committed release layer must be exactly what CUE renders from
+  # releases.json, otherwise Flux would sync something nobody reviewed.
+  release-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: Render release layer
+        run: nix develop .#ci -c cue cmd write-release
+      - name: Check it is up to date
+        run: |
+          if ! git diff --exit-code -- clusters; then
+            echo "::error::clusters/*/release is stale, run 'cue cmd write-release' and commit"
+            exit 1
+          fi
+          if [[ -n "$(git status --porcelain -- clusters)" ]]; then
+            git status --porcelain -- clusters
+            echo "::error::untracked release files, run 'cue cmd write-release' and commit"
+            exit 1
+          fi
+
+  # Talos machine config patches render and validate with throwaway secrets.
+  talos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: Generate and validate
+        run: |
+          for gen in clusters/*/talos/gen.sh; do
+            cluster=$(basename "$(dirname "$(dirname "$gen")")")
+            echo "### $cluster"
+            OUT_DIR="${RUNNER_TEMP}/talos/${cluster}" nix develop .#ci -c bash "$gen"
+          done
+
+  # Projects to diff: union of the source and target branches, so added and
+  # removed projects show up too.
+  prepare:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      projects: ${{ steps.merge.outputs.projects }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v26
-      - id: set-matrix
-        name: Generate Nix Matrix
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: target
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: List projects
+        id: merge
         run: |
-          set -Eeu
-          echo "matrix=$(nix eval --json '.#githubActions.matrix')" >> "$GITHUB_OUTPUT"
+          SOURCE=$(cd source && nix develop .#ci -c cue cmd list-projects)
+          TARGET=$(cd target && nix develop "${GITHUB_WORKSPACE}/source#ci" -c cue cmd list-projects 2>/dev/null) || TARGET="[]"
+          MERGED=$(echo "$SOURCE $TARGET" | jq -sc 'add | unique_by(.cluster + "/" + .project)')
+          echo "projects=$MERGED" >> "$GITHUB_OUTPUT"
+          echo "Projects: $MERGED"
 
-  nix-check:
-    needs: nix-check-matrix
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix: ${{fromJSON(needs.nix-check-matrix.outputs.matrix)}}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v26
-      - run: nix build -L ".#${{ matrix.attr }}" --accept-flake-config
-
-  diff-manifests:
-    env:
-      main_branch_dump: "main_dump"
-      main_branch_dir: "old"
-      target_branch_dump: "target_dump"
-      target_branch_dir: "new"
+  manifests-diff:
+    needs: [cue-vet, prepare]
+    if: needs.prepare.outputs.projects != '[]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        folder:
-          - ./crossplane/providers
-          - ./crossplane/aws/example-01
-          - ./crossplane/gcp/example-01
-          - ./crossplane/vault/vault-example
-          - ./gitops/bootstrap
-          - ./gitops/clusters/example-01
+        include: ${{ fromJson(needs.prepare.outputs.projects) }}
+      fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }} # zizmor: ignore[secrets-outside-env]
+          permission-pull-requests: write
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: target
-          fetch-depth: 0
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
 
-      - uses: actions/checkout@v4
-        with:
-          path: main
-          ref: main
-          fetch-depth: 0
-
-      - uses: cachix/install-nix-action@v26
-      - uses: yaxitech/nix-install-pkgs-action@v4
-        with:
-          packages: "cue, yq-go"
-          inputs-from: nixpkgs
-
-      - name: Render target branch
+      # Each branch is rendered with the source branch's scripts and tools;
+      # a project missing on one side (added/removed) renders as empty.
+      - name: Render branches
         run: |
-          mkdir ${{ runner.temp }}/${{ env.target_branch_dir }}
-          if [ -d ./target/${{ matrix.folder }} ]; then
-            cd ./target/${{ matrix.folder }}
-            cue cmd dump ./... > ${{ runner.temp }}/${{ env.target_branch_dump }}
-            cd ${{ runner.temp }}/${{ env.target_branch_dir }}
-            yq -s '.kind + "_" + .metadata.name' ../${{ env.target_branch_dump }}
-          fi
-
-      - name: Render main branch
-        run: |
-          mkdir ${{ runner.temp }}/${{ env.main_branch_dir }}
-          if [ -d ./main/${{ matrix.folder }} ]; then
-            cd ./main/${{ matrix.folder }}
-            cue cmd dump ./... > ${{ runner.temp }}/${{ env.main_branch_dump }}
-            cd ${{ runner.temp }}/${{ env.main_branch_dir }}
-            yq -s '.kind + "_" + .metadata.name' ../${{ env.main_branch_dump }}
-          fi
+          render() {
+            local repo=$1 out=$2
+            mkdir -p "$out" "$out.raw"
+            if (cd "$repo" && nix develop "${GITHUB_WORKSPACE}/source#ci" -c cue cmd list-projects 2>/dev/null) |
+               jq -e --arg c "$MATRIX_CLUSTER" --arg p "$MATRIX_PROJECT" 'any(.[]; .cluster == $c and .project == $p)' >/dev/null; then
+              (cd "$repo" && nix develop "${GITHUB_WORKSPACE}/source#ci" -c bash "${GITHUB_WORKSPACE}/source/scripts/render.sh" "$MATRIX_CLUSTER" "$MATRIX_PROJECT" "$out.raw")
+              (cd "$out" && cat "$out.raw"/*.yaml | yq -s '.kind + "_" + (.metadata.namespace // "_") + "_" + .metadata.name' -)
+            else
+              echo "${MATRIX_CLUSTER}/${MATRIX_PROJECT} not present in ${repo}"
+            fi
+          }
+          render source "${RUNNER_TEMP}/source"
+          render target "${RUNNER_TEMP}/target"
+        env:
+          MATRIX_CLUSTER: ${{ matrix.cluster }}
+          MATRIX_PROJECT: ${{ matrix.project }}
 
       - name: Generate diff
-        uses: int128/diff-action@v1
+        id: diff
+        uses: int128/diff-action@274034d712aef611adcbd41e5a647f43e4edd5a5 # v2.41.0
         with:
-          base: ${{ runner.temp }}/${{ env.main_branch_dir }}
-          head: ${{ runner.temp }}/${{ env.target_branch_dir }}
-          comment-header: |
-            ### Diff folder: ${{ matrix.folder }}
-          update-if-exists-key: ${{ matrix.folder }}
+          head: ${{ runner.temp }}/source
+          base: ${{ runner.temp }}/target
+
+      - uses: int128/comment-action@57130c0b08c149c4ba778ea2dbf5d9e2ac5d1917 # v1.79.0
+        if: steps.diff.outputs.comment-body != ''
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
           update-if-exists: replace
+          update-if-exists-key: ${{ matrix.cluster }}-${{ matrix.project }}
+          post: |
+            ## Manifests diff: `${{ matrix.cluster }}/${{ matrix.project }}`
+            ${{ steps.diff.outputs.comment-body }}
+
+  # The single required status check (branch ruleset).
+  final-check:
+    needs:
+      [nix-flake-check, cue-vet, release-sync, talos, prepare, manifests-diff]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          for r in "nix-flake-check=$NIX" "cue-vet=$VET" "release-sync=$SYNC" "talos=$TALOS" "prepare=$PREPARE"; do
+            if [[ "${r#*=}" != "success" ]]; then
+              echo "${r%%=*}: ${r#*=}"
+              exit 1
+            fi
+          done
+          if [[ "$DIFF" == "skipped" && "$PROJECTS" == "[]" ]]; then
+            echo "manifests-diff skipped: nothing to render"
+          elif [[ "$DIFF" != "success" ]]; then
+            echo "manifests-diff: $DIFF"
+            exit 1
+          fi
+          echo "All checks passed"
+        env:
+          NIX: ${{ needs.nix-flake-check.result }}
+          VET: ${{ needs.cue-vet.result }}
+          SYNC: ${{ needs.release-sync.result }}
+          TALOS: ${{ needs.talos.result }}
+          PREPARE: ${{ needs.prepare.result }}
+          DIFF: ${{ needs.manifests-diff.result }}
+          PROJECTS: ${{ needs.prepare.outputs.projects }}

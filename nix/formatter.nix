@@ -1,18 +1,22 @@
-{inputs, ...}: {
-  imports = [
-    inputs.treefmt-nix.flakeModule
-  ];
+{ inputs, ... }:
+{
+  imports = [ inputs.treefmt-nix.flakeModule ];
 
-  perSystem = {config, ...}: {
-    treefmt = {
-      projectRootFile = ".git/config";
-      programs = {
-        alejandra.enable = true;
-        prettier.enable = true;
-        cue.enable = false; # See https://github.com/cue-lang/cue/issues/2523
+  perSystem =
+    { config, ... }:
+    {
+      treefmt = {
+        projectRootFile = ".git/config";
+        programs = {
+          nixfmt.enable = true;
+          prettier.enable = true;
+          cue.enable = true;
+        };
+        settings.global.excludes = [
+          "cue.mod/*"
+          "flake.lock"
+        ];
       };
-      settings.global.excludes = ["cue.mod/**/" "flake.lock"];
+      formatter = config.treefmt.build.wrapper;
     };
-    formatter = config.treefmt.build.wrapper;
-  };
 }

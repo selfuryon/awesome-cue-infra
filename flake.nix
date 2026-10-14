@@ -19,11 +19,7 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
     pre-commit-hooks-nix = {
-      url = "github:hercules-ci/pre-commit-hooks.nix/flakeModule";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nix-github-actions = {
-      url = "github:nix-community/nix-github-actions";
+      url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -45,10 +41,13 @@
     ethereum-nix.url = "github:nix-community/ethereum.nix";
   };
 
-  outputs = inputs @ {flake-parts, ...}:
-    flake-parts.lib.mkFlake {inherit inputs;}
-    {
-      imports = [./nix];
-      systems = ["x86_64-linux" "aarch64-darwin"];
+  outputs =
+    inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ ./nix ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-darwin"
+      ];
     };
 }

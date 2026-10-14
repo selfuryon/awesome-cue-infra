@@ -1,0 +1,29 @@
+# Single-node cluster: workloads run on the control plane (no NoSchedule taint).
+# Dual-stack, IPv6 primary. The IPv6 node IP is the SLAAC address from the
+# Starlink ULA prefix: it doesn't depend on DHCP or the (dynamic) public IPv6
+# prefix. Talos uses the primary node IP as the kube-apiserver advertise address.
+# IPv4 is plain DHCP (Starlink has no reservations), so it may change.
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+nodeIP:
+  validSubnets:
+    - fdc0:ff20:737b:8::/64
+    - 192.168.1.0/24
+labels:
+  node-role.kubernetes.io/control-plane: ""
+---
+apiVersion: v1alpha1
+kind: KubeNetworkConfig
+podSubnets:
+  - fd00:10:244::/56
+  - 10.244.0.0/16
+serviceSubnets:
+  - fd00:10:96::/112
+  - 10.96.0.0/12
+nodeCIDRMaskSizeIPv6: 64
+nodeCIDRMaskSizeIPv4: 24
+---
+cluster:
+  etcd:
+    advertisedSubnets:
+      - fdc0:ff20:737b:8::/64

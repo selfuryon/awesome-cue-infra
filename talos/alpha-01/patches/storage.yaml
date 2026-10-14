@@ -1,0 +1,33 @@
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+installer:
+  image: factory.talos.dev/metal-installer/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:v1.14.2
+provisioning:
+  # NGFF 2280 256GB SATA SSD (its `serial` attribute is empty); matched by the
+  # by-id symlink so the USB stick is never picked.
+  diskSelector:
+    match: "'/dev/disk/by-id/ata-NGFF_2280_256GB_SSD_2022051406172' in disk.symlinks"
+  wipe: true
+---
+# Cap /var so the rest of the system disk is left for local storage.
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: EPHEMERAL
+provisioning:
+  diskSelector:
+    match: system_disk
+  maxSize: 64GiB
+  grow: false
+---
+# Mounted at /var/mnt/local-storage, takes the remaining space on the system disk.
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: local-storage
+provisioning:
+  diskSelector:
+    match: system_disk
+  minSize: 10GiB
+  grow: true
+filesystem:
+  type: xfs
+  projectQuotaSupport: true

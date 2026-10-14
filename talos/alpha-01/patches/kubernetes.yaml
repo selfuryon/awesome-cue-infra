@@ -1,0 +1,21 @@
+# Generated defaults taint and label the control plane; drop the document
+# wholesale (keys with dots can't be deleted by path), node.yaml re-adds it.
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+$patch: delete
+---
+# CNI is Cilium (installed separately), so drop the Talos-managed Flannel.
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete
+---
+# Cilium runs with kubeProxyReplacement=true.
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false
+---
+# Discovery is not needed for a single node without KubeSpan.
+apiVersion: v1alpha1
+kind: DiscoveryServiceConfig
+name: default
+$patch: delete

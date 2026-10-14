@@ -1,9 +1,0 @@
-{
-  "flux-operator": "0.61.0",
-  "flux": "v2.9.6",
-  "cilium": "1.20.2",
-  "cert-manager": "v1.21.2",
-  "local-path-provisioner": "v0.0.37",
-  "argo-cd": "10.10.3",
-  "whoami": "v1.12.0"
-}

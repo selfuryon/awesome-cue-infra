@@ -16,3 +16,23 @@ latest: #Versions & {
 		(e.name): e.version
 	}
 }
+
+// Versions a cluster runs, from its channel and pins (clusters/<name>/pins.json):
+//   fast:   latest.json, with pins on top (Renovate updates roll out directly)
+//   stable: pins only; every component the cluster uses must be pinned
+#Resolve: {
+	#channel: "fast" | "stable"
+	#pins:    #Versions
+
+	out: #Versions
+	if #channel == "fast" {
+		out: {
+			for name, v in latest {
+				(name): *v | string
+			}
+		} & #pins
+	}
+	if #channel == "stable" {
+		out: #pins
+	}
+}

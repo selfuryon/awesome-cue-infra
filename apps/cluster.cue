@@ -25,6 +25,9 @@ package apps
 	// artifact carries user applications.
 	controllers: ["flux", "argo"]
 
+	// Version channel, see registry.#Resolve.
+	channel: *"fast" | "stable"
+
 	release: {
 		// Merge release PRs automatically once CI is green.
 		autoMerge: *false | bool

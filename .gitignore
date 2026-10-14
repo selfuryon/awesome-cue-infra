@@ -1,5 +1,4 @@
 # Nix
-.envrc
 .direnv/
 .pre-commit-config.yaml
 result
@@ -10,5 +9,6 @@ result
 **/worker.yaml
 **/talosconfig
 
-# Terraform
-**/.terraform/*
+# Claude
+.claude/settings.local.json
+.claude/worktrees/

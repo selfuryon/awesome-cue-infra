@@ -19,7 +19,7 @@ Argo CD", plus the one-time GitHub setup. Talos installation itself is in
    branches_; allow squash merging.
 4. **Ruleset for `main`**: require status check `final-check`, require a PR, no
    required approvals (bots must be able to auto-merge). Block force pushes.
-5. **Labels** used by workflows: `release`, `nix`, `pin`, `renovate`, `security`
+5. **Labels** used by workflows: `release`, `nix`, `promote`, `renovate`, `security`
    (the labeler creates its own).
 
 ## 2. First publish
@@ -81,5 +81,5 @@ kubectl -n flux-system get configmap alpha-01-release -o yaml   # deployed versi
 
 - Change CUE → PR (manifest diff in comments) → merge → release PR → merge = deploy.
 - Rollback: revert the release PR.
-- Pin versions for a cluster (stable channel): run the _Pin_ workflow.
+- Promote versions (latest → cluster, cluster → cluster): run the _Promote_ workflow.
 - Old artifact versions are pruned weekly (_Registry Cleanup_, keeps pinned + last 10).

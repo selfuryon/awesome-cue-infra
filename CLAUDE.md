@@ -11,7 +11,8 @@ apps/
   global.cue, cluster.cue,     shared types: #Manifests, #Cluster, #Component,
   component.cue, render.cue,   #Render (component → Flux/Argo wrapper),
   release.cue                  #Release (release layer)
-  <component>/                 one package per component (chart + values + manifests)
+  <category>/<component>/      one package per component (gitops, network, security,
+                               storage, examples)
   registry/                    latest.json (Renovate) + #Resolve (channel + pins)
 crd/<short>/<version>/         CUE schemas generated with `cue get crd`
 clusters/
@@ -29,7 +30,7 @@ docs/                          runbooks
 
 ## Components and versions
 
-- `apps/<x>`: `#X: {#cluster: apps.#Cluster, #version: string, component: apps.#Component & {...}}`.
+- `apps/<category>/<x>`: `#X: {#cluster: apps.#Cluster, #version: string, component: apps.#Component & {...}}`.
   A component is defined once; `controller: "flux" | "argo"` only decides the wrapper:
   a chart becomes a Flux source + `HelmRelease` or an Argo CD `Application`; plain
   `manifests` go into the same artifact.
@@ -37,13 +38,18 @@ docs/                          runbooks
   `app_<x>`), passes versions and overrides values (`components: <x>: values: ...`).
 - Versions: `apps/registry/latest.json` (Renovate, auto-merged) → `clusters/<name>/pins.json`.
   `config.channel: "fast"` uses latest.json with pins on top; `"stable"` uses pins only
-  (every component must be pinned). The _Pin_ workflow copies latest versions into a
-  cluster's pins.json via PR.
+  (every component must be pinned).
+- Promotion: `scripts/promote.sh <to> <latest|cluster> [components]` (or the _Promote_
+  workflow) copies versions from latest.json or from what another cluster runs
+  (`cue cmd versions`) into the target's pins.json, touching only components it uses.
+- Each cluster has its own component set; `beta-01` is a manifest-only example
+  (`publish: false`: rendered and diffed in PRs, never published) on the stable channel.
 
 ## Delivery and releases
 
 - Projects per cluster: `bootstrap` (applied by hand once), `flux`, `argo`
-  (published as `ghcr.io/selfuryon/awesome-cue-infra/<cluster>-<project>`).
+  (published as `ghcr.io/selfuryon/awesome-cue-infra/<cluster>-<project>`). Only clusters
+  with `config.publish` get artifacts and release PRs.
 - Artifact tags are content hashes: unchanged content is never re-published.
 - Clusters never follow `latest`. The FluxInstance syncs `clusters/<name>/release/flux`
   from Git; that layer pins the Flux artifact by digest (cosign-verified) and applies
@@ -57,7 +63,7 @@ docs/                          runbooks
 ```bash
 bash .github/cue-vet.bash                              # vet every package (do not use `cue vet ./...`)
 cue cmd dump -t cluster=alpha-01 -t project=flux       # render a project
-cue cmd list-projects | list-artifacts | list-clusters
+cue cmd list-projects | list-artifacts | list-clusters | versions
 cue cmd write-release                                  # regenerate release layers
 scripts/render.sh alpha-01 flux /tmp/out               # artifact contents incl. secrets
 nix fmt                                                # treefmt (nixfmt, prettier, cue fmt)
@@ -100,7 +106,7 @@ Flux as well.
 
 ## Adding things
 
-- New component: `apps/<x>`, add it to the cluster's `components`, add its version to
+- New component: `apps/<category>/<x>`, add it to the cluster's `components`, add its version to
   `apps/registry/latest.json` (and pins.json for stable clusters). See `.claude/skills/add-component`.
 - New CRD schema: `.claude/skills/crd-generation`.
 - New cluster: `clusters/<name>/{default.cue,releases.json}`, register in

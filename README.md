@@ -13,7 +13,7 @@ rendered in CI, published to GHCR as signed OCI artifacts, and delivered by
 ## Structure
 
 ```
-apps/<component>/              a component defined once: chart, values, manifests
+apps/<category>/<component>/   a component defined once: chart, values, manifests
 apps/registry/latest.json      upstream versions (Renovate, auto-merged)
 crd/                           generated CUE schemas
 clusters/<cluster>/            default.cue (components + overrides), pins.json,
@@ -25,7 +25,8 @@ docs/bootstrap.md              GitHub setup and cluster bootstrap
 A component's `controller` (`flux` or `argo`) only changes its wrapper: a Flux
 source + `HelmRelease`, or an Argo CD `Application`. Each cluster lists the
 components it runs and takes versions from `latest.json` (channel `fast`) or only
-from its `pins.json` (channel `stable`), pins always winning.
+from its `pins.json` (channel `stable`), pins always winning. The _Promote_
+workflow moves versions from `latest` or from one cluster to another.
 
 ## Delivery
 
@@ -42,9 +43,10 @@ rolling back is reverting it.
 
 ## Clusters
 
-| Cluster    | Hardware                         | Notes                                                                  |
-| ---------- | -------------------------------- | ---------------------------------------------------------------------- |
-| `alpha-01` | Beelink U59 (N5095), Talos v1.14 | single node, dual-stack (IPv6 primary), Cilium native routing + netkit |
+| Cluster    | Hardware                         | Notes                                                                       |
+| ---------- | -------------------------------- | --------------------------------------------------------------------------- |
+| `alpha-01` | Beelink U59 (N5095), Talos v1.14 | single node, dual-stack (IPv6 primary), Cilium native routing + netkit      |
+| `beta-01`  | none (manifests only)            | example: different component set, IPv4-only, stable channel with older pins |
 
 ## Getting started
 

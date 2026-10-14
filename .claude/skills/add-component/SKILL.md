@@ -5,7 +5,7 @@ description: Add a platform component (Flux) or a user application (Argo CD) to 
 
 # Adding a component
 
-A component is defined once in `apps/<x>`; `controller` picks the wrapper:
+A component is defined once in `apps/<category>/<x>`; `controller` picks the wrapper:
 
 | controller         | chart becomes                                                    | lands in artifact |
 | ------------------ | ---------------------------------------------------------------- | ----------------- |
@@ -16,7 +16,7 @@ Platform pieces (CNI, cert-manager, storage, operators) → Flux. User apps → 
 
 ## 1. Component package
 
-`apps/<x>/<x>.cue` (package name without dashes):
+`apps/<category>/<x>/<x>.cue` (categories: gitops, network, security, storage, examples; package name without dashes):
 
 ```cue
 @experiment(aliasv2)
@@ -76,7 +76,7 @@ Add to `apps/registry/latest.json` (Renovate keeps it current):
 Datasources: `helm` (+ `"registry": "<repo url>"` before `version`), `docker` (OCI charts,
 images), `github-tags`, `github-releases`. Keep field order `name, datasource, package,
 [registry], version` — the Renovate regex depends on it. For clusters on the `stable`
-channel also add it to their `pins.json` (or run the _Pin_ workflow).
+channel also add it to their `pins.json` (or run the _Promote_ workflow).
 
 ## 3. Cluster
 
@@ -84,7 +84,7 @@ Add it to `components` in `clusters/<cluster>/default.cue` with an aliased impor
 (a field named like the import would shadow it):
 
 ```cue
-app_x "github.com/selfuryon/awesome-cue-infra/apps/x"
+app_x "github.com/selfuryon/awesome-cue-infra/apps/<category>/x"
 ...
 x: (app_x.#X & {#cluster: config, #version: _v.x}).component
 ```

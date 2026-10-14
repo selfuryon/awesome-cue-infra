@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Generates alpha-01 machine config and talosconfig into .secrets/talos/alpha-01.
+# Generates alpha-01 machine config and talosconfig into .secrets/talos/alpha-01
+# (or $OUT_DIR).
 set -euo pipefail
 
 CLUSTER=alpha-01
@@ -9,7 +10,8 @@ ENDPOINT="https://[${NODE}]:6443"
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(git -C "$here" rev-parse --show-toplevel)"
-out="$root/.secrets/talos/$CLUSTER"
+# OUT_DIR lets CI render with throwaway secrets.
+out="${OUT_DIR:-$root/.secrets/talos/$CLUSTER}"
 mkdir -p "$out"
 
 if [[ ! -f "$out/secrets.yaml" ]]; then

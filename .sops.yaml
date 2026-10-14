@@ -1,0 +1,7 @@
+# SOPS encrypts Kubernetes Secrets under clusters/<name>/secrets/. They are
+# shipped as-is inside the cluster's Flux artifact and decrypted in-cluster by
+# kustomize-controller (secret flux-system/sops-age holds the age identity).
+creation_rules:
+  - path_regex: ^clusters/[^/]+/secrets/.*\.sops\.yaml$
+    encrypted_regex: ^(data|stringData)$
+    age: age1rhhqmcas4pmur6ud05vqpzeqynksgfhvrhjd0l63whjax4554ajqx90p0l

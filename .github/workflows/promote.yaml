@@ -1,0 +1,59 @@
+name: Promote
+
+# Promotes component versions into a cluster's pins.json via a PR, either from
+# apps/registry/latest.json or from what another cluster currently runs
+# (e.g. canary -> prod). See scripts/promote.sh.
+
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: "Target cluster"
+        required: true
+      from:
+        description: "Source: 'latest' or a cluster name"
+        required: true
+        default: latest
+      components:
+        description: "Comma-separated components (empty = all the target uses)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }} # zizmor: ignore[secrets-outside-env]
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+
+      - name: Promote versions
+        run: nix develop .#ci -c bash scripts/promote.sh "$TO" "$FROM" "$COMPONENTS"
+        env:
+          TO: ${{ inputs.to }}
+          FROM: ${{ inputs.from }}
+          COMPONENTS: ${{ inputs.components }}
+
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          branch: promote/${{ inputs.to }}
+          sign-commits: true
+          delete-branch: true
+          add-paths: clusters/${{ inputs.to }}/pins.json
+          title: "chore(${{ inputs.to }}): promote versions from ${{ inputs.from }}"
+          commit-message: "chore(${{ inputs.to }}): promote versions from ${{ inputs.from }}"
+          labels: promote

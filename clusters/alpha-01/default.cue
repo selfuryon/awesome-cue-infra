@@ -8,12 +8,12 @@ package alpha01
 import (
 	"github.com/selfuryon/awesome-cue-infra/apps"
 	"github.com/selfuryon/awesome-cue-infra/apps/registry"
-	app_flux "github.com/selfuryon/awesome-cue-infra/apps/flux"
-	app_cilium "github.com/selfuryon/awesome-cue-infra/apps/cilium"
-	app_certmanager "github.com/selfuryon/awesome-cue-infra/apps/certmanager"
-	app_localpath "github.com/selfuryon/awesome-cue-infra/apps/localpath"
-	app_argocd "github.com/selfuryon/awesome-cue-infra/apps/argocd"
-	app_whoami "github.com/selfuryon/awesome-cue-infra/apps/whoami"
+	app_flux "github.com/selfuryon/awesome-cue-infra/apps/gitops/flux"
+	app_cilium "github.com/selfuryon/awesome-cue-infra/apps/network/cilium"
+	app_certmanager "github.com/selfuryon/awesome-cue-infra/apps/security/certmanager"
+	app_localpath "github.com/selfuryon/awesome-cue-infra/apps/storage/localpath"
+	app_argocd "github.com/selfuryon/awesome-cue-infra/apps/gitops/argocd"
+	app_whoami "github.com/selfuryon/awesome-cue-infra/apps/examples/whoami"
 )
 
 // Single-node Talos cluster on a Beelink U59 behind Starlink.
@@ -32,10 +32,11 @@ config: apps.#Cluster & {
 
 // Component versions: the channel's versions with pins.json on top.
 _pins: _ @embed(file="pins.json")
-let _v = (registry.#Resolve & {
+versions: (registry.#Resolve & {
 	#channel: config.channel
 	#pins:    _pins
 }).out
+let _v = versions
 
 components: apps.#Components & {
 	"flux-operator": (app_flux.#Flux & {

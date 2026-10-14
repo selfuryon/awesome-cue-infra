@@ -32,8 +32,10 @@ jobs:
       - name: List artifacts and clusters
         id: list
         run: |
-          echo "artifacts=$(nix develop .#ci -c cue cmd list-artifacts)" >> "$GITHUB_OUTPUT"
-          echo "clusters=$(nix develop .#ci -c cue cmd list-clusters)" >> "$GITHUB_OUTPUT"
+          ARTIFACTS=$(nix develop .#ci -c cue cmd list-artifacts)
+          echo "artifacts=$ARTIFACTS" >> "$GITHUB_OUTPUT"
+          # Only clusters with publish enabled get release PRs.
+          echo "clusters=$(echo "$ARTIFACTS" | jq -c '[.[].cluster] | unique')" >> "$GITHUB_OUTPUT"
 
   publish:
     needs: prepare

@@ -47,6 +47,7 @@ _projects: [
 // Projects published as OCI artifacts (one per delivery controller).
 _artifacts: [
 	for c in _clusters
+	if clusters.Clusters[c].config.publish
 	for p in clusters.Clusters[c].config.controllers {
 		"cluster": c
 		"project": p
@@ -79,6 +80,11 @@ command: "list-projects": print: cli.Print & {
 // cue cmd list-artifacts: projects published to the registry.
 command: "list-artifacts": print: cli.Print & {
 	text: json.Marshal(_artifacts)
+}
+
+// cue cmd versions -t cluster=<name>: resolved component versions (for Promote).
+command: versions: print: cli.Print & {
+	text: json.Marshal({for c in _clusters {(c): clusters.Clusters[c].versions}})
 }
 
 // cue cmd cluster-config -t cluster=<name>

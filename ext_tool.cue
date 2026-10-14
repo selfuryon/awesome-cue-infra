@@ -8,9 +8,11 @@ import (
 	"encoding/json"
 	"encoding/yaml"
 	"list"
+	"strings"
 	"tool/cli"
 	"tool/file"
 
+	"github.com/selfuryon/awesome-cue-infra/apps/registry"
 	"github.com/selfuryon/awesome-cue-infra/clusters"
 )
 
@@ -102,6 +104,76 @@ command: "write-release": {
 			$after:   command["write-release"]["mkdir-\(c)-\(kind)"]
 			filename: "\(_dir)/manifests.yaml"
 			contents: _header + yaml.MarshalStream((#Objects & {#m: m}).out)
+		}
+	}
+}
+
+// cue cmd promote -t to=<cluster> [-t from=<latest|cluster>] [-t components=a,b]
+//
+// Copies component versions into clusters/<to>/pins.json, from latest.json or
+// from the versions another cluster currently resolves. Without `components`
+// it touches every component the target resolves; an explicit list may also
+// add pins the target does not have yet (e.g. a new component on stable).
+to:         *null | string     @tag(to)
+from:       *"latest" | string @tag(from)
+components: *"" | string       @tag(components)
+
+_promote: {
+	_source: registry.#Versions
+	if from == "latest" {
+		_source: registry.latest
+	}
+	if from != "latest" {
+		_source: clusters.Clusters[from].versions
+	}
+
+	_target:  clusters.Clusters[to]
+	_current: _target.#pins
+	_only: [for s in strings.Split(components, ",") if s != "" {s}]
+	_names: [
+		if len(_only) > 0 for n in _only {n},
+		if len(_only) == 0 for n, _ in _target.versions {n},
+	]
+
+	updates: {
+		for n in _names if _source[n] != _|_ {
+			if _current[n] == _|_ {(n): _source[n]}
+			if _current[n] != _|_ if _current[n] != _source[n] {(n): _source[n]}
+		}
+	}
+	// Ordered (name, version) pairs: existing pins keep their place, new ones
+	// are appended. Rendered by hand because struct field order is not stable.
+	_pairs: [
+		for n, v in _current {
+			if updates[n] != _|_ {[n, updates[n]]}
+			if updates[n] == _|_ {[n, v]}
+		},
+		for n, v in updates if _current[n] == _|_ {[n, v]},
+	]
+	contents: "{\n" + strings.Join([for p in _pairs {"  \"\(p[0])\": \"\(p[1])\""}], ",\n") + "\n}\n"
+	summary: strings.Join([
+		for n, v in updates {
+			if _current[n] != _|_ {"\(n): \(_current[n]) -> \(v)"}
+			if _current[n] == _|_ {"\(n): (unpinned) -> \(v)"}
+		},
+	], "\n")
+}
+
+command: promote: {
+	if to == null {
+		usage: cli.Print & {text: "usage: cue cmd promote -t to=<cluster> [-t from=<latest|cluster>] [-t components=a,b]"}
+	}
+	if to != null {
+		write: file.Create & {
+			filename: "clusters/\(to)/pins.json"
+			contents: _promote.contents
+		}
+		report: cli.Print & {
+			$after: write
+			text: [
+				if len(_promote.updates) == 0 {"\(to): nothing to promote from \(from)"},
+				"\(to) <- \(from):\n\(_promote.summary)",
+			][0]
 		}
 	}
 }

@@ -2,7 +2,7 @@ name: Promote
 
 # Promotes component versions into a cluster's pins.json via a PR, either from
 # apps/registry/latest.json or from what another cluster currently runs
-# (e.g. canary -> prod). See scripts/promote.sh.
+# (e.g. canary -> prod). See `cue cmd promote` in ext_tool.cue.
 
 on:
   workflow_dispatch:
@@ -41,7 +41,7 @@ jobs:
       - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
 
       - name: Promote versions
-        run: nix develop .#ci -c bash scripts/promote.sh "$TO" "$FROM" "$COMPONENTS"
+        run: nix develop .#ci -c cue cmd promote -t to="$TO" -t from="$FROM" -t components="$COMPONENTS"
         env:
           TO: ${{ inputs.to }}
           FROM: ${{ inputs.from }}

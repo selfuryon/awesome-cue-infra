@@ -80,16 +80,21 @@ channel also add it to their `pins.json` (or run the _Promote_ workflow).
 
 ## 3. Cluster
 
-Add it to `components` in `clusters/<cluster>/default.cue` with an aliased import
-(a field named like the import would shadow it):
+Either add it to a shared definition in `clusters/defaults.cue` (`#Core`/`#Homelab`,
+every cluster built on it gets it; inside the literal `config`/`versions` are declared
+as `_` so they are in scope), or to a single cluster in `clusters/<cluster>/default.cue`.
+Use an aliased import (a field named like the import would shadow it):
 
 ```cue
 app_x "github.com/selfuryon/awesome-cue-infra/apps/<category>/x"
 ...
-x: (app_x.#X & {#cluster: config, #version: _v.x}).component
+cluster: components: x: (app_x.#X & {
+	#cluster: cluster.config
+	#version: cluster.versions.x
+}).component
 ```
 
-Overrides go next to it: `components: x: values: foo: "bar"`.
+Overrides go next to it: `cluster: components: x: values: foo: "bar"`.
 Version pin: `"x": "1.2.2"` in `clusters/<cluster>/pins.json`.
 
 ## 4. Secrets (optional)

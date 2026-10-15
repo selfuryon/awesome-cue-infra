@@ -5,14 +5,17 @@ description: Add a platform component (Flux) or a user application (Argo CD) to 
 
 # Adding a component
 
-A component is defined once in `apps/<category>/<x>`; `controller` picks the wrapper:
+A component is defined once in `apps/<category>/<x>` and belongs to a set (project,
+one artifact `<cluster>-<set>`). The set's controller picks the wrapper:
 
-| controller         | chart becomes                                                    | lands in artifact |
-| ------------------ | ---------------------------------------------------------------- | ----------------- |
-| `"flux"` (default) | `HelmRepository`/`OCIRepository`/`GitRepository` + `HelmRelease` | `<cluster>-flux`  |
-| `"argo"`           | Argo CD `Application` (helm source, `valuesObject`)              | `<cluster>-argo`  |
+| set controller | chart becomes                                                    | e.g. set           |
+| -------------- | ---------------------------------------------------------------- | ------------------ |
+| `flux`         | `HelmRepository`/`OCIRepository`/`GitRepository` + `HelmRelease` | `system` (default) |
+| `argo`         | Argo CD `Application` (helm source, `valuesObject`)              | `apps`             |
 
-Platform pieces (CNI, cert-manager, storage, operators) → Flux. User apps → Argo.
+Platform pieces (CNI, cert-manager, storage, operators) → `system`. User apps → `apps`.
+A cluster can add sets (`cluster: config: sets: monitoring: controller: "flux"`) and move
+components between them (`cluster: components: x: set: "monitoring"`).
 
 ## 1. Component package
 
@@ -36,7 +39,7 @@ import "github.com/selfuryon/awesome-cue-infra/apps"
 	component: apps.#Component & {
 		name:      "x"
 		namespace: #namespace
-		// controller: "argo"
+		// set: "apps"                       // default "system"
 		chart: {
 			kind:    "oci"                    // "helm" | "oci" | "git"
 			url:     "oci://ghcr.io/org/charts" // oci: without the chart name
@@ -99,15 +102,15 @@ Version pin: `"x": "1.2.2"` in `clusters/<cluster>/pins.json`.
 
 ## 4. Secrets (optional)
 
-`sops clusters/<cluster>/secrets/x.sops.yaml` (a Secret manifest). Shipped in the Flux
-artifact; for Argo apps the namespace must exist before Flux applies the Secret
+`sops clusters/<cluster>/secrets/<set>/x.sops.yaml` (a Secret manifest, Flux sets only).
+Shipped in that set's artifact; for Argo apps the namespace must exist before Flux applies the Secret
 (declare the namespace in a Flux component or accept a retry).
 
 ## 5. Verify
 
 ```bash
 bash .github/cue-vet.bash
-cue cmd dump -t cluster=alpha-01 -t project=flux   # or argo
+cue cmd dump -t cluster=alpha-01 -t project=system   # or apps
 helm template x <chart> --version <v> -f <(cue export ... ) # when unsure about values
 ```
 

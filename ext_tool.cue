@@ -46,11 +46,11 @@ _projects: [
 	},
 ]
 
-// Projects published as OCI artifacts (one per delivery controller).
+// Projects published as OCI artifacts (one per set).
 _artifacts: [
 	for c in _clusters
 	if clusters.Clusters[c].config.publish
-	for p in clusters.Clusters[c].config.controllers {
+	for p, _ in clusters.Clusters[c].config.sets {
 		"cluster": c
 		"project": p
 	},

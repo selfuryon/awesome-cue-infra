@@ -28,6 +28,18 @@ import (
 #Cluster: {
 	config: apps.#Cluster
 
+	// Default sets: platform components through Flux, user applications
+	// through Argo CD (which the system set installs). Clusters may add more.
+	config: sets: {
+		system: controller: "flux"
+		apps: {
+			controller: "argo"
+			dependsOn: ["system"]
+		}
+		// `bootstrap` is the hand-applied project, not a set.
+		bootstrap?: _|_
+	}
+
 	// clusters/<name>/pins.json and releases.json
 	#pins: registry.#Versions
 	#releases: {...}
@@ -40,7 +52,10 @@ import (
 
 	components: apps.#Components
 
-	let _render = apps.#Render & {#components: components}
+	let _render = apps.#Render & {
+		#components: components
+		#sets:       config.sets
+	}
 	let _release = apps.#Release & {
 		#cluster: config
 		#pins:    #releases
@@ -48,11 +63,10 @@ import (
 
 	// Projects rendered by `cue cmd dump`:
 	//   bootstrap: applied by hand once (flux-system namespace + FluxInstance)
-	//   flux, argo: published as OCI artifacts
+	//   <set>:     one per config.sets entry, published as OCI artifacts
 	manifests: {
 		bootstrap: components["flux-operator"].manifests
-		flux:      _render.flux
-		argo:      _render.argo
+		_render.out
 	}
 
 	// Release layer committed to clusters/<name>/release (`cue cmd write-release`).

@@ -17,9 +17,9 @@ import "github.com/selfuryon/awesome-cue-infra/apps"
 	let _labels = {"app.kubernetes.io/name": "whoami"}
 
 	component: apps.#Component & {
-		name:       "whoami"
-		namespace:  #namespace
-		controller: "argo"
+		name:      "whoami"
+		namespace: #namespace
+		set:       "apps"
 
 		manifests: global: namespace: (#namespace): metadata: labels: {
 			"pod-security.kubernetes.io/enforce": "restricted"

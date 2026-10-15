@@ -21,9 +21,11 @@ package apps
 #Cluster: {
 	name!: string
 
-	// Delivery controllers: the Flux artifact carries the platform, the Argo
-	// artifact carries user applications.
-	controllers: ["flux", "argo"]
+	// Component sets. Each set is its own project: one OCI artifact
+	// (<cluster>-<set>), one entry in releases.json, released and rolled back
+	// independently. The set's controller decides how its components are
+	// wrapped and who applies the artifact.
+	sets: [string]: #Set
 
 	// Publish artifacts and open release PRs. Off for clusters that exist only
 	// as manifests (rendered and diffed in PRs, never deployed).
@@ -49,4 +51,14 @@ package apps
 		// Host path of the Talos user volume backing local-path PVs.
 		localPath: *"/var/mnt/local-storage" | string
 	}
+}
+
+#Set: {
+	// flux: Kustomization over the artifact, charts as HelmReleases
+	// argo: Argo CD Application over the artifact, charts as Applications
+	controller!: "flux" | "argo"
+
+	// Sets that must be ready first. Flux sets map to Kustomization
+	// dependsOn; Argo sets wait for the Flux sets they depend on.
+	dependsOn: [...string]
 }

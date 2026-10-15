@@ -9,26 +9,33 @@ import "strings"
 // Namespace Argo CD runs in; its Applications live here.
 #ArgoNamespace: "argocd"
 
-// Renders a set of components into the two artifacts: everything delivered
-// by Flux goes to `flux`, everything delivered by Argo CD goes to `argo`.
-// A component's chart becomes a Flux source + HelmRelease or an Argo CD
-// Application; its plain manifests land in the same artifact as-is.
+// Renders components into one manifest set per #Cluster.sets entry. A
+// component's chart becomes a Flux source + HelmRelease or an Argo CD
+// Application depending on its set's controller; its plain manifests land in
+// the same set as-is.
 #Render: {
 	#components: #Components
+	#sets: [string]: #Set
 
 	let _all = #components
+	let _sets = #sets
 
-	flux: #Manifests
-	argo: #Manifests
+	out: [string]: #Manifests
+	// Every set renders, even when empty.
+	for name, _ in #sets {
+		out: (name): {}
+	}
 
 	for _, c in #components {
-		(c.controller): c.manifests
+		let _controller = _sets[c.set].controller
 
-		if c.chart != _|_ if c.controller == "flux" {
-			flux: scoped: (c.namespace): (#FluxChart & {#c: c, #components: _all}).out
+		out: (c.set): c.manifests
+
+		if c.chart != _|_ if _controller == "flux" {
+			out: (c.set): scoped: (c.namespace): (#FluxChart & {#c: c, #components: _all}).out
 		}
-		if c.chart != _|_ if c.controller == "argo" {
-			argo: scoped: (#ArgoNamespace): application: (c.name): (#ArgoChart & {#c: c}).out
+		if c.chart != _|_ if _controller == "argo" {
+			out: (c.set): scoped: (#ArgoNamespace): application: (c.name): (#ArgoChart & {#c: c}).out
 		}
 	}
 }

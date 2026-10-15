@@ -24,8 +24,8 @@ Argo CD", plus the one-time GitHub setup. Talos installation itself is in
 
 ## 2. First publish
 
-Merge to `main`. The Publish workflow pushes `ghcr.io/selfuryon/awesome-cue-infra/<cluster>-flux`
-and `-argo` and opens `release(<cluster>)` PRs.
+Merge to `main`. The Publish workflow pushes one artifact per set,
+`ghcr.io/selfuryon/awesome-cue-infra/<cluster>-<set>` (`-system`, `-apps`), and opens `release(<cluster>)` PRs.
 
 GHCR creates new packages as **private**. For each package (GitHub profile → Packages):
 
@@ -59,10 +59,10 @@ cue cmd dump -t cluster=alpha-01 -t project=bootstrap | kubectl apply --server-s
 From here on:
 
 1. The FluxInstance installs Flux and syncs `release/flux` from Git.
-2. `alpha-01-flux` (OCIRepository, cosign-verified) applies the platform: flux-operator
+2. `alpha-01-system` (OCIRepository, cosign-verified) applies the platform: flux-operator
    (adopts the Helm release above), Cilium, cert-manager, local-path-provisioner, Argo CD.
-3. `alpha-01-argo` (after the platform is ready) applies the root Argo `Application`,
-   which syncs the `alpha-01-argo` artifact.
+3. `alpha-01-release-argo` (after `alpha-01-system` is ready) applies the Argo
+   `Application` `alpha-01-apps`, which syncs the `alpha-01-apps` artifact.
 
 Cilium installed by hand with `helm install cilium` is adopted by the `cilium`
 HelmRelease (same release name and namespace, same values) and upgraded in place.

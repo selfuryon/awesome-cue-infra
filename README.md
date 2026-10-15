@@ -22,7 +22,9 @@ scripts/                       render, publish, release, ghcr-cleanup
 docs/bootstrap.md              GitHub setup and cluster bootstrap
 ```
 
-A component's `controller` (`flux` or `argo`) only changes its wrapper: a Flux
+Components are grouped into sets (projects): `system` (platform, Flux) and `apps`
+(user applications, Argo CD) by default, more per cluster. Each set is its own
+artifact and release. The set's controller only changes a component's wrapper: a Flux
 source + `HelmRelease`, or an Argo CD `Application`. Each cluster lists the
 components it runs and takes versions from `latest.json` (channel `fast`) or only
 from its `pins.json` (channel `stable`), pins always winning. The _Promote_
@@ -31,11 +33,11 @@ workflow moves versions from `latest` or from one cluster to another.
 ## Delivery
 
 ```
-CUE ──(CI on main)──▶ ghcr.io/selfuryon/awesome-cue-infra/<cluster>-{flux,argo}:<content-hash>
+CUE ──(CI on main)──▶ ghcr.io/selfuryon/awesome-cue-infra/<cluster>-<set>:<content-hash>
                                    │ cosign-signed, pinned by digest
 release PR edits clusters/<cluster>/releases.json + release/  ──▶ merge = deploy
-FluxInstance ─▶ release/flux ─▶ <cluster>-flux artifact (platform, incl. Argo CD)
-                             └▶ release/argo ─▶ root Application ─▶ <cluster>-argo artifact
+FluxInstance ─▶ release/flux ─▶ <cluster>-system artifact (platform, incl. Argo CD)
+                             └▶ release/argo ─▶ Application per Argo set ─▶ <cluster>-apps artifact
 ```
 
 No cluster follows `latest`: switching versions is a reviewed (or auto-merged) PR, and
@@ -53,7 +55,7 @@ rolling back is reverting it.
 ```bash
 direnv allow
 bash .github/cue-vet.bash
-cue cmd dump -t cluster=alpha-01 -t project=flux
+cue cmd dump -t cluster=alpha-01 -t project=system
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/bootstrap.md](docs/bootstrap.md).

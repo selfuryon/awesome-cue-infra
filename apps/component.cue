@@ -24,14 +24,16 @@ package apps
 	name!:      string
 	namespace!: string
 
-	// Which controller delivers the component, i.e. which artifact it lands in.
-	controller: *"flux" | "argo"
+	// The set (project/artifact) the component lands in, see #Cluster.sets.
+	// Its controller decides the wrapper: Flux source + HelmRelease, or an
+	// Argo CD Application.
+	set: *"system" | string
 
 	// Optional Helm chart and its values.
 	chart?: #Chart
 	values: {...}
 
-	// Names of components (in the same set) that must be ready first.
+	// Names of Flux-delivered components that must be ready first.
 	// Honoured by Flux; Argo applies everything in one sync.
 	dependsOn: [...string]
 

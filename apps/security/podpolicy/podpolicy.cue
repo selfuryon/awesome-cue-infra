@@ -70,13 +70,22 @@ _pods: {
 			"disallow-default-namespace": spec: {
 				validationActions: ["Deny"]
 				evaluation: background: enabled: true
-				matchConstraints: resourceRules: [{
-					apiGroups:   ["", "apps", "batch"]
-					apiVersions: ["v1"]
-					// CREATE only: the apiserver keeps updating its own objects there.
-					operations: ["CREATE"]
-					resources:  ["pods", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs"]
-				}]
+				// One rule per API group: a rule is the cross product of its groups
+				// and resources, and pairs like apps/v1 pods do not exist (Kyverno
+				// then lacks RBAC for them and marks the policy not ready).
+				// CREATE only: the apiserver keeps updating its own objects there.
+				matchConstraints: resourceRules: [
+					for g, r in {
+						"":    ["pods"]
+						apps:  ["deployments", "statefulsets", "daemonsets"]
+						batch: ["jobs", "cronjobs"]
+					} {
+						apiGroups:   [g]
+						apiVersions: ["v1"]
+						operations:  ["CREATE"]
+						resources:   r
+					},
+				]
 				validations: [{
 					expression: "object.metadata.?namespace.orValue('') != 'default'"
 					message:    "Workloads must not run in the default namespace."

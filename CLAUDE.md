@@ -138,10 +138,10 @@ Flux as well.
 ## Network policy
 
 - Platform namespaces are named `*-system` (`kube-system`, `flux-system`, `argo-system`,
-  `cert-manager-system`, `kyverno-system`, `local-path-system`). Kyverno
-  (`apps/security/namespacepolicy`) generates a CiliumNetworkPolicy `allow-all` in every
-  `*-system` namespace and `default-deny` (no ingress, egress only DNS to kube-dns) in every
-  other one. A new platform component must use a `*-system` namespace; an application opens
+  `cert-manager-system`, `kyverno-system`, `local-path-system`). Kyverno GeneratingPolicies
+  (`apps/security/namespacepolicy`) create a CiliumNetworkPolicy `allow-all` in every
+  `*-system` namespace, and `default-deny` (no ingress, egress only DNS to kube-dns) plus a
+  LimitRange `default-limits` in every other one. A new platform component must use a `*-system` namespace; an application opens
   what it needs with its own CNP next to it (see `apps/examples/whoami`).
 - The Cilium host firewall (`apps/network/hostfirewall`, CCNP with `nodeSelector`) admits to
   the node only in-cluster traffic plus Talos API (50000), kube-apiserver (6443), DHCPv4 and
@@ -149,3 +149,24 @@ Flux as well.
 - Roll out policy changes with `config.network.policyAudit: true` (Cilium logs instead of
   dropping), check `kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg
 monitor -t policy-verdict`, then switch it off.
+
+## Kyverno policies
+
+All policies are Kyverno CEL policies (`policies.kyverno.io/v1`: GeneratingPolicy,
+ValidatingPolicy, DeletingPolicy); `kyverno.io/v1 ClusterPolicy` is deprecated, do not add
+new ones. Schemas in `crd/kyvernopolicies/v1`. Workload rules (`apps/security/podpolicy`):
+
+- Deny: `:latest` or untagged images; registries outside `config.security.allowedRegistries`
+  (images must name the registry: `docker.io/library/nginx:1.27`, not `nginx:1.27`);
+  workloads in `default`; LoadBalancer/NodePort Services outside `*-system` namespaces
+  unless the namespace has `awesome-cue-infra/expose: "true"`.
+- Audit: cpu/memory requests and a memory limit in application namespaces.
+- Cleanup: hourly deletion of Succeeded/Failed pods not owned by a Job.
+
+Generated objects reach CEL as JSON (`generator.Apply(ns, [json.unmarshal('…')])`), built
+from typed CUE (`#Generate` in namespacepolicy). Test CEL locally:
+`nix shell nixpkgs#kyverno -c kyverno apply <policies.yaml> --resource <objects.yaml>`
+(add `--cluster` to evaluate against live objects; `namespaceObject` is only available
+there). Autogen rules for controllers see the pod template's metadata (no namespace): turn
+autogen off (`autogen: podControllers: controllers: []`) for pod policies conditioned on the
+namespace.

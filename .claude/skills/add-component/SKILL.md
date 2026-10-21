@@ -16,6 +16,12 @@ one artifact `<cluster>-<set>`). The set's controller picks the wrapper:
 Platform pieces (CNI, cert-manager, storage, operators) → `system`, in a `*-system`
 namespace (other namespaces get a default-deny CiliumNetworkPolicy). CRs of operators
 from `system` (policies, issuers) → `policy`. User apps → `apps`, with their own CNP.
+
+Kyverno rules every component must satisfy: images name their registry (one of
+`config.security.allowedRegistries`) and a tag other than `latest` (or a digest); nothing
+in `default`; a LoadBalancer/NodePort Service outside `*-system` needs the namespace label
+`awesome-cue-infra/expose: "true"`.
+
 A cluster can add sets (`cluster: config: sets: monitoring: controller: "flux"`) and move
 components between them (`cluster: components: x: set: "monitoring"`).
 

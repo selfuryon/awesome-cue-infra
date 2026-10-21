@@ -11,7 +11,7 @@ import (
 	flux_kustomize_v1 "cue.dev/x/crd/fluxcd.io/kustomize/v1"
 	fluxoperator_v1 "github.com/selfuryon/awesome-cue-infra/crd/fluxoperator/v1"
 	cilium_v2 "github.com/selfuryon/awesome-cue-infra/crd/cilium/v2"
-	kyverno_v1 "cue.dev/x/crd/kyverno.io/v1"
+	kyvernopolicies_v1 "github.com/selfuryon/awesome-cue-infra/crd/kyvernopolicies/v1"
 )
 
 // Kubernetes Types: cluster scoped
@@ -39,8 +39,10 @@ import (
 	// Cilium
 	ciliumClusterwideNetworkPolicy: [string]: cilium_v2.#CiliumClusterwideNetworkPolicy
 
-	// Kyverno
-	clusterPolicy: [string]: kyverno_v1.#ClusterPolicy
+	// Kyverno (CEL policies, policies.kyverno.io)
+	validatingPolicy: [string]: kyvernopolicies_v1.#ValidatingPolicy
+	generatingPolicy: [string]: kyvernopolicies_v1.#GeneratingPolicy
+	deletingPolicy: [string]:   kyvernopolicies_v1.#DeletingPolicy
 }
 
 // Kubernetes Types: namespace scoped

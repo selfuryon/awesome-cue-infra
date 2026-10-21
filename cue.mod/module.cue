@@ -9,7 +9,6 @@ deps: {
 		v:       "v0.8.0"
 		default: true
 	}
-	"cue.dev/x/crd/kyverno.io@v0": v: "v0.8.0"
 	"cue.dev/x/k8s.io@v0": {
 		v:       "v0.12.0"
 		default: true

@@ -10,6 +10,7 @@ import (
 	app_certmanager "github.com/selfuryon/awesome-cue-infra/apps/security/certmanager"
 	app_kyverno "github.com/selfuryon/awesome-cue-infra/apps/security/kyverno"
 	app_namespacepolicy "github.com/selfuryon/awesome-cue-infra/apps/security/namespacepolicy"
+	app_podpolicy "github.com/selfuryon/awesome-cue-infra/apps/security/podpolicy"
 	app_localpath "github.com/selfuryon/awesome-cue-infra/apps/storage/localpath"
 	app_whoami "github.com/selfuryon/awesome-cue-infra/apps/examples/whoami"
 )
@@ -125,6 +126,7 @@ import (
 			#version: versions.kyverno
 		}).component
 		"namespace-policy": (app_namespacepolicy.#NamespacePolicy & {#cluster: config}).component
+		"pod-policy":       (app_podpolicy.#PodPolicy & {#cluster: config}).component
 		"local-path-provisioner": (app_localpath.#LocalPath & {
 			#cluster: config
 			#version: versions["local-path-provisioner"]

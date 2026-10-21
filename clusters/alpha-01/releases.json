@@ -1,1 +1,10 @@
-{}
+{
+  "apps": {
+    "tag": "8ba2d9fbc0698e25",
+    "digest": "sha256:119df3a637ef4d90b427129cec01b3a7f0f8214ad3b8f825fec438490ba45dce"
+  },
+  "system": {
+    "tag": "909df24195e5e687",
+    "digest": "sha256:cec68e0c928a8e99d01b6f0eeb5c435ac4b970fb3cfa7939a301727227cf90cc"
+  }
+}

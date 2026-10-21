@@ -63,6 +63,11 @@ import (
 			hostFirewall: enabled: true
 			policyAuditMode: #cluster.network.policyAudit
 
+			// The agent reads cilium-config only at start: roll the pods when it
+			// changes, otherwise e.g. host firewall / audit mode stay off until a
+			// restart.
+			rollOutCiliumPods: true
+
 			nodeIPAM: enabled: true
 			defaultLBServiceIPAM: "nodeipam"
 			loadBalancer: acceleration: "disabled"

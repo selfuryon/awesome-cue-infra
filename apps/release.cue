@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package apps
 
 import "list"
@@ -66,11 +62,11 @@ import "list"
 			}
 			kustomization: "\(_name)-\(set)": spec: {
 				sourceRef: {kind: "OCIRepository", name: "\(_name)-\(set)"}
-				path:     "./"
-				interval: "10m"
-				timeout:  "10m"
-				prune:    true
-				wait:     true
+				path:      "./"
+				interval:  "10m"
+				timeout:   "10m"
+				prune:     true
+				wait:      true
 				decryption: {
 					provider: "sops"
 					secretRef: name: "sops-age"
@@ -90,9 +86,9 @@ import "list"
 		flux: scoped: (_ns): kustomization: "\(_name)-release-argo": spec: {
 			// The GitRepository created by the FluxInstance sync.
 			sourceRef: {kind: "GitRepository", name: _ns}
-			path:     "./clusters/\(_name)/release/argo"
-			interval: "10m"
-			prune:    true
+			path:      "./clusters/\(_name)/release/argo"
+			interval:  "10m"
+			prune:     true
 			if len(_needed) > 0 {
 				dependsOn: [for s in _needed {name: "\(_name)-\(s)"}]
 			}
@@ -112,7 +108,7 @@ import "list"
 				namespace: #ArgoNamespace
 			}
 			syncPolicy: {
-				automated: {prune: true, selfHeal: true}
+				automated:   {prune: true, selfHeal: true}
 				syncOptions: ["ServerSideApply=true"]
 			}
 		}

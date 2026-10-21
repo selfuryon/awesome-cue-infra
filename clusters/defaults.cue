@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package defaults
 
 import (
@@ -35,14 +31,14 @@ import (
 		system: controller: "flux"
 		apps: {
 			controller: "argo"
-			dependsOn: ["system"]
+			dependsOn:  ["system"]
 		}
 		// `bootstrap` is the hand-applied project, not a set.
 		bootstrap?: _|_
 	}
 
 	// clusters/<name>/pins.json and releases.json
-	#pins: registry.#Versions
+	#pins:     registry.#Versions
 	#releases: {...}
 
 	let _pins = #pins

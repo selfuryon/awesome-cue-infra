@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package certmanager
 
 import "github.com/selfuryon/awesome-cue-infra/apps"

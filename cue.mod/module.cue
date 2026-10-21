@@ -1,6 +1,6 @@
 module: "github.com/selfuryon/awesome-cue-infra@v0"
 language: {
-	version: "v0.17.1"
+	version: "v0.18.0"
 }
 deps: {
 	"cue.dev/x/argo/cd@v0": {

@@ -1,7 +1,4 @@
 @extern(embed)
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
 
 package alpha01
 
@@ -19,9 +16,9 @@ cluster: defaults.#Homelab & {
 		release: autoMerge: true
 		network: {
 			// Dual-stack, IPv6 primary; must match talos/patches/node.yaml.
-			podCIDRs: ["fd00:10:244::/56", "10.244.0.0/16"]
+			podCIDRs:     ["fd00:10:244::/56", "10.244.0.0/16"]
 			serviceCIDRs: ["fd00:10:96::/112", "10.96.0.0/12"]
-			devices: ["enp2s0"]
+			devices:      ["enp2s0"]
 		}
 	}
 	#pins:     _pins

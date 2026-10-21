@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package clusters
 
 import (

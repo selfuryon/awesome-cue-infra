@@ -1,7 +1,4 @@
 @extern(embed)
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
 
 package beta01
 
@@ -22,9 +19,9 @@ cluster: defaults.#Core & {
 		channel: "stable"
 		publish: false
 		network: {
-			podCIDRs: ["10.244.0.0/16"]
+			podCIDRs:     ["10.244.0.0/16"]
 			serviceCIDRs: ["10.96.0.0/12"]
-			devices: ["eth0"]
+			devices:      ["eth0"]
 		}
 	}
 	#pins:     _pins

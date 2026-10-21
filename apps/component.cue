@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package apps
 
 // A Helm chart source. The same definition renders to a Flux source +

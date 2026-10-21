@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package whoami
 
 import "github.com/selfuryon/awesome-cue-infra/apps"
@@ -39,7 +35,7 @@ import "github.com/selfuryon/awesome-cue-infra/apps"
 						containers: [{
 							name:  "whoami"
 							image: "docker.io/traefik/whoami:\(#version)"
-							args: ["--port", "8080"]
+							args:  ["--port", "8080"]
 							ports: [{name: "http", containerPort: 8080}]
 							securityContext: {
 								allowPrivilegeEscalation: false
@@ -58,7 +54,7 @@ import "github.com/selfuryon/awesome-cue-infra/apps"
 				type:           "LoadBalancer"
 				ipFamilyPolicy: "PreferDualStack"
 				selector:       _labels
-				ports: [{name: "http", port: 80, targetPort: "http"}]
+				ports:          [{name: "http", port: 80, targetPort: "http"}]
 			}
 		}
 	}

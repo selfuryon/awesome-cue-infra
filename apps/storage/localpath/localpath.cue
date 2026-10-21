@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package localpath
 
 import "github.com/selfuryon/awesome-cue-infra/apps"
@@ -33,7 +29,7 @@ import "github.com/selfuryon/awesome-cue-infra/apps"
 				volumeBindingMode: "WaitForFirstConsumer"
 			}
 			nodePathMap: [{
-				node: "DEFAULT_PATH_FOR_NON_LISTED_NODES"
+				node:  "DEFAULT_PATH_FOR_NON_LISTED_NODES"
 				paths: [#cluster.storage.localPath]
 			}]
 		}

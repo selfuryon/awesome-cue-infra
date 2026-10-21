@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package apps
 
 // Repository coordinates: artifacts are published to GHCR under this path and
@@ -41,7 +37,7 @@ package apps
 
 	network: {
 		// Primary family first; pod/service CIDRs must match Talos KubeNetworkConfig.
-		podCIDRs!: [...string]
+		podCIDRs!:     [...string]
 		serviceCIDRs!: [...string]
 		// Host interfaces Cilium attaches to.
 		devices!: [...string]

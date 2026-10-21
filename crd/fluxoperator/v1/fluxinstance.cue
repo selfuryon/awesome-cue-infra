@@ -1,5 +1,3 @@
-@experiment(explicitopen)
-
 package v1
 
 #FluxInstance: {
@@ -17,7 +15,7 @@ package v1
 	// In CamelCase.
 	// More info:
 	// https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-	kind?: string
+	kind?:     string
 	metadata?: {}
 
 	// FluxInstanceSpec defines the desired state of FluxInstance

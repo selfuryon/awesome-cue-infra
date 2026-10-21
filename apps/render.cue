@@ -1,7 +1,3 @@
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package apps
 
 import "strings"
@@ -52,9 +48,9 @@ import "strings"
 				interval: "12h"
 			}
 			helmRelease: (#c.name): spec: chart: spec: {
-				chart:    _chart.name
-				version:  _chart.version
-				interval: "12h"
+				chart:     _chart.name
+				version:   _chart.version
+				interval:  "12h"
 				sourceRef: {kind: "HelmRepository", name: #c.name}
 			}
 		}
@@ -80,7 +76,7 @@ import "strings"
 				chart:             _chart.path
 				interval:          "12h"
 				reconcileStrategy: "Revision"
-				sourceRef: {kind: "GitRepository", name: #c.name}
+				sourceRef:         {kind: "GitRepository", name: #c.name}
 			}
 		}
 
@@ -136,7 +132,7 @@ import "strings"
 			namespace: #c.namespace
 		}
 		syncPolicy: {
-			automated: {prune: true, selfHeal: true}
+			automated:   {prune: true, selfHeal: true}
 			syncOptions: ["ServerSideApply=true"]
 		}
 	}

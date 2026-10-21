@@ -3,8 +3,8 @@
 #
 # Keeps every digest referenced by a clusters/*/releases.json (what clusters
 # run, or can roll back to via revert) plus the newest $KEEP artifacts per
-# package. Cosign signatures (sha256-<digest>.sig tags) live and die with
-# their artifact; untagged leftovers are removed. Dry run unless DRY_RUN=0.
+# package. Cosign signatures and attestations (sha256-<digest>.sig / .att tags)
+# live and die with their artifact; untagged leftovers are removed. Dry run unless DRY_RUN=0.
 #
 #   OWNER=selfuryon PREFIX=awesome-cue-infra KEEP=10 DRY_RUN=0 scripts/ghcr-cleanup.sh
 set -euo pipefail
@@ -28,7 +28,7 @@ gh api --paginate "/users/$owner/packages?package_type=container" -q ".[].name" 
         | map({id, digest: .name, tags: .metadata.container.tags})
         | (map(select(.tags | any(startswith("sha256-") | not)))) as $artifacts
         | ([$artifacts[:$keep][].digest] + $pinned | unique) as $kept
-        | ($kept | map("sha256-" + ltrimstr("sha256:") + ".sig")) as $keptSigs
+        | ($kept | map("sha256-" + ltrimstr("sha256:") | (. + ".sig", . + ".att"))) as $keptSigs
         | map(select(
             (.digest | IN($kept[]) | not)
             and (.tags | any(IN($keptSigs[])) | not)

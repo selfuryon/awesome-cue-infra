@@ -37,6 +37,11 @@
   "vulnerabilityAlerts": {
     "enabled": true,
     "minimumReleaseAge": null,
-    "labels": ["renovate", "security"]
-  }
+    "labels": ["renovate", "security"],
+    "prCreation": "immediate",
+    "description": "Security fixes skip the minimumReleaseAge soak and the hourly limit; needs Dependabot vulnerability alerts enabled on the repository."
+  },
+  "prHourlyLimit": 6,
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
+  "assignees": ["selfuryon"]
 }

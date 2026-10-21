@@ -18,6 +18,9 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+env:
+  GOGC: "200"
+
 jobs:
   prepare:
     runs-on: ubuntu-26.04

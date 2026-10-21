@@ -3,13 +3,23 @@ name: Integration
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  # Merge queue: the same checks run against the queue's merge result, so two
+  # PRs that are green alone but red together (a schema change plus a new use
+  # of it, a Renovate bump plus a release PR) never reach main. There is no PR
+  # to diff against or comment on, so manifests-diff renders every project.
+  merge_group:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+env:
+  # Go's GC takes a large share of a cue run's CPU at the default 100; 200
+  # trades a little memory for ~14% less wall time (measured in etherno-infra).
+  GOGC: "200"
 
 jobs:
   # Formatting and lint hooks (treefmt, pre-commit) without the devshell.
@@ -72,39 +82,84 @@ jobs:
             OUT_DIR="${RUNNER_TEMP}/talos/${cluster}" nix develop .#ci -c bash "$gen"
           done
 
-  # Projects to diff: union of the source and target branches, so added and
-  # removed projects show up too.
+  # Projects to diff: the union of the source and target branches (so added
+  # and removed projects show up), narrowed to the clusters whose inputs
+  # changed. On merge_group every source project is rendered.
   prepare:
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
-      projects: ${{ steps.merge.outputs.projects }}
+      projects: ${{ steps.scope.outputs.projects || steps.merge.outputs.projects }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: source
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
         with:
           path: target
           ref: ${{ github.base_ref }}
           persist-credentials: false
       - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+
       - name: List projects
         id: merge
         run: |
           SOURCE=$(cd source && nix develop .#ci -c cue cmd list-projects)
-          # The base branch uses its own devshell (its CUE) when it has one.
-          SHELL_TARGET="${GITHUB_WORKSPACE}/source#ci"
-          if nix eval "${GITHUB_WORKSPACE}/target#devShells.x86_64-linux.ci" --apply '_: true' >/dev/null 2>&1; then
-            SHELL_TARGET="${GITHUB_WORKSPACE}/target#ci"
+          TARGET="[]"
+          if [[ -d target ]]; then
+            # The base branch uses its own devshell (its CUE) when it has one.
+            SHELL_TARGET="${GITHUB_WORKSPACE}/source#ci"
+            if nix eval "${GITHUB_WORKSPACE}/target#devShells.x86_64-linux.ci" --apply '_: true' >/dev/null 2>&1; then
+              SHELL_TARGET="${GITHUB_WORKSPACE}/target#ci"
+            fi
+            TARGET=$(cd target && nix develop "$SHELL_TARGET" -c cue cmd list-projects 2>/dev/null) || TARGET="[]"
           fi
-          TARGET=$(cd target && nix develop "$SHELL_TARGET" -c cue cmd list-projects 2>/dev/null) || TARGET="[]"
           MERGED=$(echo "$SOURCE $TARGET" | jq -sc 'add | unique_by(.cluster + "/" + .project)')
           echo "projects=$MERGED" >> "$GITHUB_OUTPUT"
           echo "Projects: $MERGED"
 
+      # Rendering every project on every PR wastes jobs as clusters grow.
+      # Shared inputs keep the full matrix; a change under clusters/<name>/
+      # renders that cluster's projects; anything else (docs, Talos patches,
+      # the release layer, which release-sync covers) renders nothing.
+      - name: Narrow matrix to affected clusters
+        id: scope
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          FILES=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate -q '.[].filename')
+          echo "Changed files:"; echo "${FILES}" | sed 's/^/  /'
+
+          if echo "${FILES}" | grep -qE '^(apps/|crd/|cue\.mod/|nix/|scripts/|\.github/|ext_tool\.cue|flake\.(nix|lock)|clusters/[^/]+\.cue)'; then
+            echo "Shared input changed: full matrix"
+            echo "projects=${MERGED}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CLUSTERS=$(echo "${FILES}" | jq -R -s -c '
+            [splits("\n")] | map(select(length > 0) | split("/"))
+            | map(select(.[0] == "clusters" and length > 2))
+            | map(select(.[2] != "talos" and .[2] != "release" and .[2] != "releases.json"))
+            | map(.[1]) | unique')
+          AFFECTED=$(jq -c -n --argjson all "${MERGED}" --argjson c "${CLUSTERS}" \
+            '$all | map(select(.cluster as $x | $c | index($x)))')
+          echo "projects=${AFFECTED}" >> "$GITHUB_OUTPUT"
+          echo "Matrix: ${AFFECTED}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGED: ${{ steps.merge.outputs.projects }}
+
   manifests-diff:
     needs: [cue-vet, prepare]
+    # An empty matrix is a workflow error, not a skip; final-check accepts the
+    # skip only when prepare found nothing to render. On merge_group the job
+    # renders only (no base, no diff, no comment): a failed render is the signal.
     if: needs.prepare.outputs.projects != '[]'
     runs-on: ubuntu-26.04
     strategy:
@@ -114,6 +169,7 @@ jobs:
     steps:
       - name: Generate a token
         id: generate-token
+        if: github.event_name == 'pull_request'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
@@ -125,6 +181,7 @@ jobs:
           path: source
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
         with:
           path: target
           ref: ${{ github.base_ref }}
@@ -151,12 +208,15 @@ jobs:
               echo "$1: $(cd "$repo" && nix develop "$shell" -c cue version | head -1)"
               (cd "$repo" && nix develop "$shell" -c bash "$script" "$MATRIX_CLUSTER" "$MATRIX_PROJECT" "$out.raw")
               for f in "$out.raw"/*.yaml; do cat "$f"; echo "---"; done > "$out.yaml"
+              echo "Rendered $MATRIX_CLUSTER/$MATRIX_PROJECT in $1: $(grep -c '^kind:' "$out.yaml") objects"
             else
               echo "${MATRIX_CLUSTER}/${MATRIX_PROJECT} not present in $1"
             fi
           }
           render source "${RUNNER_TEMP}/source"
-          render target "${RUNNER_TEMP}/target"
+          if [[ -d target ]]; then
+            render target "${RUNNER_TEMP}/target"
+          fi
         env:
           MATRIX_CLUSTER: ${{ matrix.cluster }}
           MATRIX_PROJECT: ${{ matrix.project }}
@@ -164,6 +224,7 @@ jobs:
       # Only the objects that differ, one normalized file each
       # (<namespace>/<kind>/<name>.yaml), see .github/split-manifests.py.
       - name: Lay out changed objects
+        if: github.event_name == 'pull_request'
         run: |
           nix develop "${GITHUB_WORKSPACE}/source#ci" -c python3 "${GITHUB_WORKSPACE}/source/.github/split-manifests.py" \
             "${RUNNER_TEMP}/target.yaml" "${RUNNER_TEMP}/source.yaml" \
@@ -171,13 +232,14 @@ jobs:
 
       - name: Generate diff
         id: diff
+        if: github.event_name == 'pull_request'
         uses: int128/diff-action@274034d712aef611adcbd41e5a647f43e4edd5a5 # v2.41.0
         with:
           head: ${{ runner.temp }}/source
           base: ${{ runner.temp }}/target
 
       - uses: int128/comment-action@57130c0b08c149c4ba778ea2dbf5d9e2ac5d1917 # v1.79.0
-        if: steps.diff.outputs.comment-body != ''
+        if: github.event_name == 'pull_request' && steps.diff.outputs.comment-body != ''
         with:
           token: ${{ steps.generate-token.outputs.token }}
           update-if-exists: replace

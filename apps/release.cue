@@ -95,6 +95,19 @@ import "list"
 		}
 	}
 
+	// The `default` AppProject is normally created by argocd-server, which the
+	// headless install does not run. It lives here, not in a Flux set, because
+	// it needs Argo's CRDs: release/argo is applied only after the Flux sets the
+	// Argo sets depend on (which install Argo CD) are ready.
+	if len(_argo) > 0 {
+		argo: scoped: (#ArgoNamespace): appProject: default: spec: {
+			description:              "Default project (created by argocd-server in a full install)"
+			sourceRepos:              ["*"]
+			destinations:             [{server: "*", namespace: "*"}]
+			clusterResourceWhitelist: [{group: "*", kind: "*"}]
+		}
+	}
+
 	for set in _argo {
 		argo: scoped: (#ArgoNamespace): application: "\(_name)-\(set)": spec: {
 			project: "default"

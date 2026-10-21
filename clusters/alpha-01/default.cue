@@ -19,6 +19,10 @@ cluster: defaults.#Homelab & {
 			podCIDRs:     ["fd00:10:244::/56", "10.244.0.0/16"]
 			serviceCIDRs: ["fd00:10:96::/112", "10.96.0.0/12"]
 			devices:      ["enp2s0"]
+			// LAN (IPv4) and the Starlink ULA prefix; not the public IPv6 prefix.
+			trustedCIDRs: ["192.168.1.0/24", "fdc0:ff20:737b::/48"]
+			// Rollout of the host firewall and default-deny: log, do not drop.
+			policyAudit: true
 		}
 	}
 	#pins:     _pins

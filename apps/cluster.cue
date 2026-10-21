@@ -41,6 +41,13 @@ package apps
 		serviceCIDRs!: [...string]
 		// Host interfaces Cilium attaches to.
 		devices!: [...string]
+		// Sources allowed to reach the node itself (Talos API, kube-apiserver,
+		// DHCP, ICMP) through the Cilium host firewall; everything else from
+		// outside the cluster is dropped.
+		trustedCIDRs!: [...string]
+		// Cilium policyAuditMode: policies only log what they would drop. Used to
+		// roll out the host firewall and default-deny policies safely.
+		policyAudit: *false | bool
 	}
 
 	storage: {

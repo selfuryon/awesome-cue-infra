@@ -61,7 +61,9 @@ From here on:
 1. The FluxInstance installs Flux and syncs `release/flux` from Git.
 2. `alpha-01-system` (OCIRepository, cosign-verified) applies the platform: flux-operator
    (adopts the Helm release above), Cilium, cert-manager, Kyverno, local-path-provisioner, Argo CD.
-3. `alpha-01-release-argo` (after `alpha-01-system` is ready) applies the Argo
+   `alpha-01-policy` (after system) applies the Kyverno ClusterPolicy for namespace
+   network defaults and the Cilium host firewall.
+3. `alpha-01-release-argo` (after `alpha-01-system` and `alpha-01-policy`) applies the Argo
    `Application` `alpha-01-apps`, which syncs the `alpha-01-apps` artifact.
 
 Cilium installed by hand with `helm install cilium` is adopted by the `cilium`

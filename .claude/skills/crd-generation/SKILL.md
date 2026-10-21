@@ -43,7 +43,7 @@ kubectl get crd <name> -o yaml > /tmp/crds/<name>.yaml
 
 ```bash
 mkdir -p crd/<short-name>
-(cd crd/<short-name> && cue get crd --group <group> -s /tmp/crds/*.<group>.yaml)
+(cd crd/<short-name> && cue get crd --group <group> /tmp/crds/*.<group>.yaml)   # no -s since CUE v0.18
 
 # strip generator artifacts (below), then the matchN validators CUE evaluates
 # expensively (idempotent; --presence only for kinds instantiated in bulk)
@@ -62,6 +62,7 @@ module's language version v0.18.0; they use no other experiment.
 
 - **`import (...)` block**: drop. Replace validator calls that used it:
   `strings.MaxRunes(N)` / `strings.MinRunes(N) &` → `string`, `time.Time` → `string`.
+  `list.MaxItems(N) &` / `list.MinItems(N) &` → drop.
 - **`_embeddedResource` reference and its `_embeddedResource: { ... }` block**: drop.
   The trailing concrete `apiVersion`, `kind` and `metadata!` already pin what we need.
 - **Top-level `status?: { ... }`** with its preceding comment: drop (controller-owned).
@@ -82,6 +83,10 @@ dump's CPU, mostly Cilium policies). `scripts/crd/strip-matchn.py` removes two f
 {nodeSelector!: _}]`), only in the files passed with `--presence`. This drops a check,
   so limit it to kinds we instantiate in bulk and restate the checks we rely on where the
   type is applied (`apps/global.cue`).
+
+The script tolerates the multi-line layout `cue get crd`/`cue fmt` produce since v0.18
+(`&` at line end, schema lists on their own lines). `crd/cilium/v2` (CNP, CCNP) is
+processed with `--presence` for both files.
 
 Drop this step once CUE decides these schema shapes without unifying; regenerating then
 restores the original validators.

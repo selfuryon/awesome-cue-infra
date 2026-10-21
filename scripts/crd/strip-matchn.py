@@ -31,10 +31,13 @@ import pathlib
 import re
 import sys
 
-INT_OR_STRING = "matchN(>=1, [int, string]) & "
-FOLLOWERS = ("(int | string)", '(int | =~"')
+# Whitespace-tolerant: CUE >= 0.18 (`cue get crd`, `cue fmt`) breaks these
+# expressions over lines (`&` at line end, schema lists on their own lines).
+INT_OR_STRING = re.compile(r"matchN\(>=1,\s*\[int,\s*string\]\)\s*&\s*")
+FOLLOWER = re.compile(r"\(\s*int\s*\|\s*(?:string\s*\)|=~\")")
 
-PRESENCE = re.compile(r"matchN\((?:>=1|1), \[(?:\{\s*[\w\"-]+!: _\s*\}(?:,\s*)?)+\]\)")
+PRESENCE = re.compile(r"matchN\((?:>=1|1),\s*\[\s*(?:\{\s*[\w\"-]+!:\s*_\s*\}\s*,?\s*)+\]\)")
+AND = re.compile(r"\s*&\s*")
 
 
 def call_end(src: str, start: int) -> int:
@@ -48,13 +51,12 @@ def call_end(src: str, start: int) -> int:
 
 def strip_int_or_string(src: str) -> tuple[str, int]:
     out, n, i = [], 0, 0
-    while (j := src.find(INT_OR_STRING, i)) >= 0:
-        rest = src[j + len(INT_OR_STRING):]
-        out.append(src[i:j])
-        if not rest.startswith(FOLLOWERS):
-            sys.exit(f"unexpected form after {INT_OR_STRING!r}: {rest[:60]!r}")
+    while (m := INT_OR_STRING.search(src, i)) is not None:
+        out.append(src[i:m.start()])
+        if not FOLLOWER.match(src, m.end()):
+            sys.exit(f"unexpected form after {m.group(0)!r}: {src[m.end():m.end() + 60]!r}")
         n += 1
-        i = j + len(INT_OR_STRING)
+        i = m.end()
     out.append(src[i:])
     return "".join(out), n
 
@@ -70,8 +72,8 @@ def strip_presence(src: str) -> tuple[str, int]:
             continue
         out.append(src[i:j])
         n += 1
-        if src.startswith(" & ", end):
-            i = end + len(" & ")  # matchN(...) & {...} -> {...}
+        if (amp := AND.match(src, end)) is not None and amp.group(0).strip() == "&":
+            i = amp.end()  # matchN(...) & {...} -> {...}
         else:
             out.append("_")  # a bare matchN(...) constrains nothing else
             i = end

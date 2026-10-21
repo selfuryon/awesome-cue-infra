@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   update-inputs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       # An App token, not GITHUB_TOKEN: PRs opened with GITHUB_TOKEN do not
       # trigger CI, so auto-merge would wait forever for final-check.

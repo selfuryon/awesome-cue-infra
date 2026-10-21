@@ -8,6 +8,8 @@
     let
       # Everything CI needs to vet, render, publish and release manifests.
       ciPackages = with pkgs; [
+        # .github/split-manifests.py (PR manifest diffs), scripts/crd/strip-matchn.py
+        (python3.withPackages (p: [ p.pyyaml ]))
         cue
         oras
         cosign

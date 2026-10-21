@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       artifacts: ${{ steps.list.outputs.artifacts }}
       clusters: ${{ steps.list.outputs.clusters }}
@@ -39,7 +39,7 @@ jobs:
 
   publish:
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write # push to GHCR
@@ -73,7 +73,7 @@ jobs:
 
   release:
     needs: [prepare, publish]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         cluster: ${{ fromJson(needs.prepare.outputs.clusters) }}

@@ -14,7 +14,7 @@ concurrency:
 jobs:
   # Formatting and lint hooks (treefmt, pre-commit) without the devshell.
   nix-flake-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -24,7 +24,7 @@ jobs:
         run: nix build .#checks.x86_64-linux.pre-commit .#checks.x86_64-linux.treefmt
 
   cue-vet:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -36,7 +36,7 @@ jobs:
   # The committed release layer must be exactly what CUE renders from
   # releases.json, otherwise Flux would sync something nobody reviewed.
   release-sync:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,7 +58,7 @@ jobs:
 
   # Talos machine config patches render and validate with throwaway secrets.
   talos:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,7 +75,7 @@ jobs:
   # Projects to diff: union of the source and target branches, so added and
   # removed projects show up too.
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       projects: ${{ steps.merge.outputs.projects }}
     steps:
@@ -93,7 +93,12 @@ jobs:
         id: merge
         run: |
           SOURCE=$(cd source && nix develop .#ci -c cue cmd list-projects)
-          TARGET=$(cd target && nix develop "${GITHUB_WORKSPACE}/source#ci" -c cue cmd list-projects 2>/dev/null) || TARGET="[]"
+          # The base branch uses its own devshell (its CUE) when it has one.
+          SHELL_TARGET="${GITHUB_WORKSPACE}/source#ci"
+          if nix eval "${GITHUB_WORKSPACE}/target#devShells.x86_64-linux.ci" --apply '_: true' >/dev/null 2>&1; then
+            SHELL_TARGET="${GITHUB_WORKSPACE}/target#ci"
+          fi
+          TARGET=$(cd target && nix develop "$SHELL_TARGET" -c cue cmd list-projects 2>/dev/null) || TARGET="[]"
           MERGED=$(echo "$SOURCE $TARGET" | jq -sc 'add | unique_by(.cluster + "/" + .project)')
           echo "projects=$MERGED" >> "$GITHUB_OUTPUT"
           echo "Projects: $MERGED"
@@ -101,7 +106,7 @@ jobs:
   manifests-diff:
     needs: [cue-vet, prepare]
     if: needs.prepare.outputs.projects != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         include: ${{ fromJson(needs.prepare.outputs.projects) }}
@@ -126,19 +131,28 @@ jobs:
           persist-credentials: false
       - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
 
-      # Each branch is rendered with the source branch's scripts and tools;
-      # a project missing on one side (added/removed) renders as empty.
+      # Each branch is rendered with its own tools (devshell CUE and
+      # scripts/render.sh), so a CUE upgrade in the PR never has to evaluate
+      # the base; a branch without them falls back to the source's. A project
+      # missing on one side (added/removed) renders as empty.
       - name: Render branches
         run: |
           render() {
-            local repo=$1 out=$2
-            mkdir -p "$out" "$out.raw"
-            if (cd "$repo" && nix develop "${GITHUB_WORKSPACE}/source#ci" -c cue cmd list-projects 2>/dev/null) |
+            local repo="${GITHUB_WORKSPACE}/$1" out=$2 shell script
+            shell="${GITHUB_WORKSPACE}/source#ci"
+            if nix eval "${repo}#devShells.x86_64-linux.ci" --apply '_: true' >/dev/null 2>&1; then
+              shell="${repo}#ci"
+            fi
+            script="${repo}/scripts/render.sh"
+            [[ -f "$script" ]] || script="${GITHUB_WORKSPACE}/source/scripts/render.sh"
+            : > "$out.yaml"
+            if (cd "$repo" && nix develop "$shell" -c cue cmd list-projects 2>/dev/null) |
                jq -e --arg c "$MATRIX_CLUSTER" --arg p "$MATRIX_PROJECT" 'any(.[]; .cluster == $c and .project == $p)' >/dev/null; then
-              (cd "$repo" && nix develop "${GITHUB_WORKSPACE}/source#ci" -c bash "${GITHUB_WORKSPACE}/source/scripts/render.sh" "$MATRIX_CLUSTER" "$MATRIX_PROJECT" "$out.raw")
-              (cd "$out" && cat "$out.raw"/*.yaml | yq -s '.kind + "_" + (.metadata.namespace // "_") + "_" + .metadata.name' -)
+              echo "$1: $(cd "$repo" && nix develop "$shell" -c cue version | head -1)"
+              (cd "$repo" && nix develop "$shell" -c bash "$script" "$MATRIX_CLUSTER" "$MATRIX_PROJECT" "$out.raw")
+              for f in "$out.raw"/*.yaml; do cat "$f"; echo "---"; done > "$out.yaml"
             else
-              echo "${MATRIX_CLUSTER}/${MATRIX_PROJECT} not present in ${repo}"
+              echo "${MATRIX_CLUSTER}/${MATRIX_PROJECT} not present in $1"
             fi
           }
           render source "${RUNNER_TEMP}/source"
@@ -146,6 +160,14 @@ jobs:
         env:
           MATRIX_CLUSTER: ${{ matrix.cluster }}
           MATRIX_PROJECT: ${{ matrix.project }}
+
+      # Only the objects that differ, one normalized file each
+      # (<namespace>/<kind>/<name>.yaml), see .github/split-manifests.py.
+      - name: Lay out changed objects
+        run: |
+          nix develop "${GITHUB_WORKSPACE}/source#ci" -c python3 "${GITHUB_WORKSPACE}/source/.github/split-manifests.py" \
+            "${RUNNER_TEMP}/target.yaml" "${RUNNER_TEMP}/source.yaml" \
+            "${RUNNER_TEMP}/target" "${RUNNER_TEMP}/source"
 
       - name: Generate diff
         id: diff
@@ -169,7 +191,7 @@ jobs:
     needs:
       [nix-flake-check, cue-vet, release-sync, talos, prepare, manifests-diff]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Check results
         run: |

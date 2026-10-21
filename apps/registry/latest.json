@@ -17,7 +17,7 @@
       "datasource": "helm",
       "package": "cilium",
       "registry": "https://helm.cilium.io",
-      "version": "1.20.2"
+      "version": "1.20.3"
     },
     {
       "name": "cert-manager",

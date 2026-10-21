@@ -50,6 +50,19 @@ package apps
 		policyAudit: *false | bool
 	}
 
+	security: {
+		// Image registries pods may pull from (prefixes; enforced by Kyverno,
+		// apps/security/podpolicy). Images must name their registry.
+		allowedRegistries: *[
+			"docker.io/",
+			"ghcr.io/",
+			"quay.io/",
+			"registry.k8s.io/",
+			"reg.kyverno.io/",
+			"ecr-public.aws.com/",
+		] | [...string]
+	}
+
 	storage: {
 		// Host path of the Talos user volume backing local-path PVs.
 		localPath: *"/var/mnt/local-storage" | string

@@ -19,6 +19,8 @@ import "github.com/selfuryon/awesome-cue-infra/apps"
 
 		manifests: global: namespace: (#namespace): metadata: labels: {
 			"pod-security.kubernetes.io/enforce": "restricted"
+			// Allowed to have a LoadBalancer Service (apps/security/podpolicy).
+			"awesome-cue-infra/expose": "true"
 		}
 		manifests: scoped: (#namespace): {
 			deployment: whoami: spec: {

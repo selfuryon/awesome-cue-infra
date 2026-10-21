@@ -82,22 +82,25 @@ cue cmd dump -t cluster=alpha-01 -t project=system     # render a project (boots
 cue cmd list-projects | list-artifacts | list-clusters | versions
 cue cmd promote -t to=beta-01 -t from=alpha-01 -t components=cilium
 cue cmd write-release                                  # regenerate release layers
-scripts/render.sh alpha-01 flux /tmp/out               # artifact contents incl. secrets
+scripts/render.sh alpha-01 system /tmp/out             # artifact contents incl. secrets
 nix fmt                                                # treefmt (nixfmt, prettier, cue fmt)
 ```
 
 ## CUE rules
 
-- Every hand-written `.cue` file starts with:
-  ```cue
-  @experiment(aliasv2)
-  @experiment(explicitopen)
-  @experiment(try)
-  ```
-  (`@extern(embed)` first when the file embeds JSON). Generated `crd/` files use only
-  `@experiment(explicitopen)`.
-- The CUE version is not pinned: it comes from nixpkgs via `flake.lock` (same locally and
-  in CI), and the weekly flake PR is the upgrade path.
+- Language version v0.18.0 (`cue.mod/module.cue`): postfix aliases (`~(K,V)`, `self`) and
+  strict embedding are plain language. No `@experiment` attributes by default; add
+  `@experiment(try)` only to a file using `try`/`?`/`else`/`otherwise`. Never add
+  `@experiment(aliasv2)`/`@experiment(explicitopen)` (stable, a no-op). `@extern(embed)`
+  stays first in files that embed JSON. Experiment status and v0.18 pitfalls: the
+  `cue-expert` skill.
+- CUE binary: pinned to v0.18.0-rc.1 in `nix/overlay.nix` (upstream release tarball) until
+  v0.18.0 reaches nixpkgs; then drop the override and `flake.lock` picks the version again.
+  The devshell and CI (`nix develop .#ci`) use the same binary. The PR diff renders the
+  base branch with its own devshell, so a CUE upgrade never has to evaluate old code.
+- After any CUE change compare every (cluster, project) render before/after as objects
+  (`.github/split-manifests.py`, "N differ"), not bytes: map key order and YAML quoting
+  move between CUE versions.
 - Scope trap: inside `X & {#cluster: #cluster}` the right-hand `#cluster` refers to the
   inner field itself. Bind outer values with `let` first (`let _c = #cluster`).
 - Field names shadow imports of the same name: alias component imports (`app_cilium`).

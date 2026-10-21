@@ -22,10 +22,6 @@ components between them (`cluster: components: x: set: "monitoring"`).
 `apps/<category>/<x>/<x>.cue` (categories: gitops, network, security, storage, examples; package name without dashes):
 
 ```cue
-@experiment(aliasv2)
-@experiment(explicitopen)
-@experiment(try)
-
 package x
 
 import "github.com/selfuryon/awesome-cue-infra/apps"

@@ -60,7 +60,7 @@ From here on:
 
 1. The FluxInstance installs Flux and syncs `release/flux` from Git.
 2. `alpha-01-system` (OCIRepository, cosign-verified) applies the platform: flux-operator
-   (adopts the Helm release above), Cilium, cert-manager, local-path-provisioner, Argo CD.
+   (adopts the Helm release above), Cilium, cert-manager, Kyverno, local-path-provisioner, Argo CD.
 3. `alpha-01-release-argo` (after `alpha-01-system` is ready) applies the Argo
    `Application` `alpha-01-apps`, which syncs the `alpha-01-apps` artifact.
 

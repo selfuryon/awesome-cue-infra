@@ -42,6 +42,12 @@
       "datasource": "docker",
       "package": "docker.io/traefik/whoami",
       "version": "v1.12.0"
+    },
+    {
+      "name": "kyverno",
+      "datasource": "docker",
+      "package": "ghcr.io/kyverno/charts/kyverno",
+      "version": "3.9.1"
     }
   ]
 }

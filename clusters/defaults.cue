@@ -11,6 +11,7 @@ import (
 	app_argocd "github.com/selfuryon/awesome-cue-infra/apps/gitops/argocd"
 	app_cilium "github.com/selfuryon/awesome-cue-infra/apps/network/cilium"
 	app_certmanager "github.com/selfuryon/awesome-cue-infra/apps/security/certmanager"
+	app_kyverno "github.com/selfuryon/awesome-cue-infra/apps/security/kyverno"
 	app_localpath "github.com/selfuryon/awesome-cue-infra/apps/storage/localpath"
 	app_whoami "github.com/selfuryon/awesome-cue-infra/apps/examples/whoami"
 )
@@ -101,7 +102,8 @@ import (
 	}
 }
 
-// Core plus certificates, local storage and the example Argo application.
+// Core plus certificates, policies (Kyverno), local storage and the example
+// Argo application.
 #Homelab: #Core & {
 	config:   _
 	versions: _
@@ -110,6 +112,10 @@ import (
 		"cert-manager": (app_certmanager.#CertManager & {
 			#cluster: config
 			#version: versions["cert-manager"]
+		}).component
+		kyverno: (app_kyverno.#Kyverno & {
+			#cluster: config
+			#version: versions.kyverno
 		}).component
 		"local-path-provisioner": (app_localpath.#LocalPath & {
 			#cluster: config

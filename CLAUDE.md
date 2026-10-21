@@ -43,7 +43,7 @@ docs/                          runbooks
   Kustomization `dependsOn`; Argo sets wait for the Flux sets they depend on.
 - `clusters/defaults.cue` (package `defaults`) holds `#Cluster` (version resolution,
   render, release layer, projects) and component sets: `#Core` (flux-operator, Cilium,
-  Argo CD) and `#Homelab` (Core + cert-manager, local-path, whoami). A cluster unifies one
+  Argo CD) and `#Homelab` (Core + cert-manager, Kyverno, local-path, whoami). A cluster unifies one
   with its config and inputs, then adds components (`cluster: components: x: ...`, aliased
   import `app_<x>`) or overrides values (`cluster: components: <x>: values: ...`).
   Unification cannot remove a component: pick the smallest definition and add to it.

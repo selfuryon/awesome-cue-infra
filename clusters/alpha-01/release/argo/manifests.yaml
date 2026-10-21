@@ -32,7 +32,7 @@ spec:
   source:
     path: .
     repoURL: oci://ghcr.io/selfuryon/awesome-cue-infra/alpha-01-apps
-    targetRevision: sha256:119df3a637ef4d90b427129cec01b3a7f0f8214ad3b8f825fec438490ba45dce
+    targetRevision: sha256:76ba2808f2ed6da29a0b76860f2b21cd5e3244d06af05c052cdbd32e2fc6520e
   syncPolicy:
     automated:
       prune: true

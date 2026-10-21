@@ -1,0 +1,23 @@
+apiVersion: v1alpha1
+kind: HostnameConfig
+auto: off
+hostname: alpha-01
+---
+apiVersion: v1alpha1
+kind: ResolverConfig
+nameservers:
+  - address: 2606:4700:4700::1111
+  - address: 2001:4860:4860::8888
+  - address: 1.1.1.1
+  - address: 8.8.8.8
+hostDNS:
+  enabled: true
+  # Breaks CoreDNS together with Cilium bpf.masquerade=true.
+  forwardKubeDNSToHost: false
+---
+# IPv6 forwarding is on for pods; keep accepting RAs so SLAAC addresses
+# (Starlink ULA + global) and the IPv6 default route stay on enp2s0.
+apiVersion: v1alpha1
+kind: SysctlConfig
+params:
+  net.ipv6.conf.enp2s0.accept_ra: "2"

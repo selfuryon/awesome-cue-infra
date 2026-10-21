@@ -1,45 +1,51 @@
-{inputs, ...}: {
-  perSystem = {
-    inputs',
-    system,
-    config,
-    ...
-  }: let
-    pkgs = import inputs.nixpkgs {
-      inherit system;
-      config.allowUnfree = true;
-    };
-    inherit (inputs'.ethereum-nix.packages) ethdo;
-    google-env = pkgs.google-cloud-sdk.withExtraComponents [pkgs.google-cloud-sdk.components.gke-gcloud-auth-plugin];
-  in {
-    devshells.default = {
-      name = "example";
-      packages = with pkgs; [
-        argocd
-        argocd-vault-plugin
-        fluxctl
-        awscli2
+{
+  perSystem =
+    {
+      config,
+      pkgs,
+      ...
+    }:
+    let
+      # Everything CI needs to vet, render, publish and release manifests.
+      ciPackages = with pkgs; [
+        # .github/split-manifests.py (PR manifest diffs), scripts/crd/strip-matchn.py
+        (python3.withPackages (p: [ p.pyyaml ]))
         cue
-        cilium-cli
-        ethdo
-        google-env
-        go
-        k9s
-        krew
-        kubectl
-        kubectx
-        kubelogin-oidc
-        kubernetes-helm
-        kustomize
-        shellcheck
-        statix
+        oras
+        cosign
+        jq
+        yq-go
+        gh
         talosctl
-        yaml-language-server
-        vault-bin
       ];
-      devshell.startup = {
-        pre-commit.text = config.pre-commit.installationScript;
+    in
+    {
+      devshells.default = {
+        name = "awesome-cue-infra";
+        packages =
+          ciPackages
+          ++ (with pkgs; [
+            age
+            argocd
+            fluxcd
+            kubectl
+            kubectx
+            kubelogin-oidc
+            kubernetes-helm
+            kustomize
+            pinact
+            secretspec
+            sops
+            zizmor
+          ]);
+        devshell.startup = {
+          pre-commit.text = config.pre-commit.installationScript;
+        };
+      };
+
+      devshells.ci = {
+        name = "awesome-cue-infra-ci";
+        packages = ciPackages;
       };
     };
-  };
 }

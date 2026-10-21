@@ -1,0 +1,53 @@
+{
+  "components": [
+    {
+      "name": "flux-operator",
+      "datasource": "docker",
+      "package": "ghcr.io/controlplaneio-fluxcd/charts/flux-operator",
+      "version": "0.61.0"
+    },
+    {
+      "name": "flux",
+      "datasource": "github-releases",
+      "package": "fluxcd/flux2",
+      "version": "v2.9.6"
+    },
+    {
+      "name": "cilium",
+      "datasource": "helm",
+      "package": "cilium",
+      "registry": "https://helm.cilium.io",
+      "version": "1.20.2"
+    },
+    {
+      "name": "cert-manager",
+      "datasource": "docker",
+      "package": "quay.io/jetstack/charts/cert-manager",
+      "version": "v1.21.2"
+    },
+    {
+      "name": "local-path-provisioner",
+      "datasource": "github-tags",
+      "package": "rancher/local-path-provisioner",
+      "version": "v0.0.37"
+    },
+    {
+      "name": "argo-cd",
+      "datasource": "docker",
+      "package": "ghcr.io/argoproj/argo-helm/argo-cd",
+      "version": "10.10.3"
+    },
+    {
+      "name": "whoami",
+      "datasource": "docker",
+      "package": "docker.io/traefik/whoami",
+      "version": "v1.12.0"
+    },
+    {
+      "name": "kyverno",
+      "datasource": "docker",
+      "package": "ghcr.io/kyverno/charts/kyverno",
+      "version": "3.9.1"
+    }
+  ]
+}

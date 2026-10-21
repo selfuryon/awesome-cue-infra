@@ -1,0 +1,84 @@
+name: CUE Compatibility
+
+# Checks the repo against another CUE release before moving the pin in
+# nix/overlay.nix: vet every package, render every project, and confirm the
+# release layer still renders identically. Compare the renders with the pinned
+# version's (the job prints object counts per project).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "CUE version to test: a release tag (v0.18.0), `latest`, or `master`"
+        required: false
+        type: string
+        default: latest
+
+permissions:
+  contents: read
+
+env:
+  GOGC: "200"
+
+jobs:
+  cue-compat:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Resolve CUE version
+        id: cue-version
+        if: inputs.version != 'master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          VERSION="${INPUT_VERSION}"
+          if [[ -z "${VERSION}" || "${VERSION}" == "latest" ]]; then
+            VERSION=$(gh release view --repo cue-lang/cue --json tagName --jq '.tagName')
+          fi
+          if [[ -z "${VERSION}" || "${VERSION}" == "null" ]]; then
+            echo "::error::could not resolve the CUE release tag"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "CUE release: ${VERSION}"
+
+      - uses: cue-lang/setup-cue@b0e30e540a2dae47304ebf16586a5b2db023b61c # v2.0.0
+        if: inputs.version != 'master'
+        with:
+          version: ${{ steps.cue-version.outputs.version }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: inputs.version == 'master'
+        with:
+          go-version: "1.27"
+
+      - name: Install CUE from master
+        if: inputs.version == 'master'
+        run: |
+          set -euo pipefail
+          go install cuelang.org/go/cmd/cue@master
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Show CUE version
+        run: cue version
+
+      - name: Run CUE validation
+        run: bash .github/cue-vet.bash
+
+      - name: Render every project
+        run: |
+          set -euo pipefail
+          for p in $(cue cmd list-projects | jq -r '.[] | "\(.cluster)/\(.project)"'); do
+            out=$(cue cmd dump -t cluster="${p%/*}" -t project="${p#*/}")
+            echo "${p}: $(grep -c '^kind:' <<<"$out") objects"
+          done
+
+      - name: Release layer is unchanged
+        run: |
+          cue cmd write-release
+          git diff --exit-code -- clusters

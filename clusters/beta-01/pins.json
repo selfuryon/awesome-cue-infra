@@ -1,0 +1,7 @@
+{
+  "flux-operator": "0.60.0",
+  "flux": "v2.9.5",
+  "cilium": "1.20.1",
+  "argo-cd": "10.10.2",
+  "whoami": "v1.12.0"
+}

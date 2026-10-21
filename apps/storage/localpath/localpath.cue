@@ -2,7 +2,7 @@ package localpath
 
 import "github.com/selfuryon/awesome-cue-infra/apps"
 
-#namespace: "local-path-storage"
+#namespace: "local-path-system"
 
 // Rancher local-path-provisioner on top of the Talos user volume. The chart
 // is not published to a Helm repository, so it is taken from the Git tag.

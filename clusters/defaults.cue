@@ -6,8 +6,10 @@ import (
 	app_flux "github.com/selfuryon/awesome-cue-infra/apps/gitops/flux"
 	app_argocd "github.com/selfuryon/awesome-cue-infra/apps/gitops/argocd"
 	app_cilium "github.com/selfuryon/awesome-cue-infra/apps/network/cilium"
+	app_hostfirewall "github.com/selfuryon/awesome-cue-infra/apps/network/hostfirewall"
 	app_certmanager "github.com/selfuryon/awesome-cue-infra/apps/security/certmanager"
 	app_kyverno "github.com/selfuryon/awesome-cue-infra/apps/security/kyverno"
+	app_namespacepolicy "github.com/selfuryon/awesome-cue-infra/apps/security/namespacepolicy"
 	app_localpath "github.com/selfuryon/awesome-cue-infra/apps/storage/localpath"
 	app_whoami "github.com/selfuryon/awesome-cue-infra/apps/examples/whoami"
 )
@@ -25,13 +27,20 @@ import (
 #Cluster: {
 	config: apps.#Cluster
 
-	// Default sets: platform components through Flux, user applications
-	// through Argo CD (which the system set installs). Clusters may add more.
+	// Default sets:
+	//   system: platform components (Flux), including the CRDs everything uses
+	//   policy: cluster policies, CRs of Kyverno/Cilium (Flux, after system)
+	//   apps:   user applications (Argo CD, after the policies are in place)
+	// Clusters may add more.
 	config: sets: {
 		system: controller: "flux"
+		policy: {
+			controller: "flux"
+			dependsOn:  ["system"]
+		}
 		apps: {
 			controller: "argo"
-			dependsOn:  ["system"]
+			dependsOn:  ["system", "policy"]
 		}
 		// `bootstrap` is the hand-applied project, not a set.
 		bootstrap?: _|_
@@ -73,7 +82,8 @@ import (
 	}
 }
 
-// Minimal platform: Flux (with flux-operator), Cilium and headless Argo CD.
+// Minimal platform: Flux (with flux-operator), Cilium with the host firewall,
+// and headless Argo CD.
 #Core: #Cluster & {
 	// Bring the fields into lexical scope for the references below.
 	config:   _
@@ -91,6 +101,7 @@ import (
 			#cluster: config
 			#version: versions.cilium
 		}).component
+		"host-firewall": (app_hostfirewall.#HostFirewall & {#cluster: config}).component
 		"argo-cd": (app_argocd.#ArgoCD & {
 			#cluster: config
 			#version: versions["argo-cd"]
@@ -98,8 +109,8 @@ import (
 	}
 }
 
-// Core plus certificates, policies (Kyverno), local storage and the example
-// Argo application.
+// Core plus certificates, policies (Kyverno, with per-namespace network
+// defaults), local storage and the example Argo application.
 #Homelab: #Core & {
 	config:   _
 	versions: _
@@ -113,6 +124,7 @@ import (
 			#cluster: config
 			#version: versions.kyverno
 		}).component
+		"namespace-policy": (app_namespacepolicy.#NamespacePolicy & {#cluster: config}).component
 		"local-path-provisioner": (app_localpath.#LocalPath & {
 			#cluster: config
 			#version: versions["local-path-provisioner"]

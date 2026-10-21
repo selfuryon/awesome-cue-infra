@@ -2,7 +2,7 @@ package certmanager
 
 import "github.com/selfuryon/awesome-cue-infra/apps"
 
-#namespace: "cert-manager"
+#namespace: "cert-manager-system"
 
 #CertManager: {
 	#cluster: apps.#Cluster

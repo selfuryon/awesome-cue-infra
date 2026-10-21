@@ -22,6 +22,7 @@ cluster: defaults.#Core & {
 			podCIDRs:     ["10.244.0.0/16"]
 			serviceCIDRs: ["10.96.0.0/12"]
 			devices:      ["eth0"]
+			trustedCIDRs: ["10.0.0.0/8"]
 		}
 	}
 	#pins:     _pins

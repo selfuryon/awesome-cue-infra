@@ -3,7 +3,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   name: default
-  namespace: argocd
+  namespace: argo-system
   labels:
     app.kubernetes.io/part-of: awesome-cue-infra
 spec:
@@ -21,12 +21,12 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: alpha-01-apps
-  namespace: argocd
+  namespace: argo-system
   labels:
     app.kubernetes.io/part-of: awesome-cue-infra
 spec:
   destination:
-    namespace: argocd
+    namespace: argo-system
     server: https://kubernetes.default.svc
   project: default
   source:

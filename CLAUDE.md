@@ -37,13 +37,16 @@ docs/                          runbooks
   Argo CD `Application`; plain `manifests` go into the same artifact.
 - Sets (`config.sets`, like etherno-infra projects): each set is a project with its own
   artifact `<cluster>-<set>`, releases.json entry, release and rollback. Defaults:
-  `system` (Flux: platform) and `apps` (Argo, `dependsOn: ["system"]`). Add sets per
+  `system` (Flux: platform and the CRDs), `policy` (Flux, after system: CRs of Kyverno and
+  Cilium such as ClusterPolicy and the host firewall CCNP — a set cannot use a kind whose
+  CRD it installs itself) and `apps` (Argo, after system and policy). Add sets per
   cluster (`cluster: config: sets: monitoring: controller: "flux"`) and move components
   (`cluster: components: x: set: "monitoring"`). Set `dependsOn` becomes Flux
   Kustomization `dependsOn`; Argo sets wait for the Flux sets they depend on.
 - `clusters/defaults.cue` (package `defaults`) holds `#Cluster` (version resolution,
   render, release layer, projects) and component sets: `#Core` (flux-operator, Cilium,
-  Argo CD) and `#Homelab` (Core + cert-manager, Kyverno, local-path, whoami). A cluster unifies one
+  Argo CD) and `#Homelab` (Core + cert-manager, Kyverno + namespace-policy, local-path, whoami); `#Core` includes
+  the host firewall. A cluster unifies one
   with its config and inputs, then adds components (`cluster: components: x: ...`, aliased
   import `app_<x>`) or overrides values (`cluster: components: <x>: values: ...`).
   Unification cannot remove a component: pick the smallest definition and add to it.
@@ -131,3 +134,18 @@ Flux as well.
 - New CRD schema: `.claude/skills/crd-generation`.
 - New cluster: `clusters/<name>/{default.cue,pins.json,releases.json}` based on a
   definition from `clusters/defaults.cue`, register in `clusters/clusters.cue`, run `cue cmd write-release`, follow `docs/bootstrap.md`.
+
+## Network policy
+
+- Platform namespaces are named `*-system` (`kube-system`, `flux-system`, `argo-system`,
+  `cert-manager-system`, `kyverno-system`, `local-path-system`). Kyverno
+  (`apps/security/namespacepolicy`) generates a CiliumNetworkPolicy `allow-all` in every
+  `*-system` namespace and `default-deny` (no ingress, egress only DNS to kube-dns) in every
+  other one. A new platform component must use a `*-system` namespace; an application opens
+  what it needs with its own CNP next to it (see `apps/examples/whoami`).
+- The Cilium host firewall (`apps/network/hostfirewall`, CCNP with `nodeSelector`) admits to
+  the node only in-cluster traffic plus Talos API (50000), kube-apiserver (6443), DHCPv4 and
+  ICMP/NDP from `config.network.trustedCIDRs`. Keep Talos API reachable when editing it.
+- Roll out policy changes with `config.network.policyAudit: true` (Cilium logs instead of
+  dropping), check `kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg
+monitor -t policy-verdict`, then switch it off.

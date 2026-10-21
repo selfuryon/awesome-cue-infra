@@ -58,6 +58,11 @@ import (
 				hostLegacyRouting: false
 			}
 
+			// Host firewall: CiliumClusterwideNetworkPolicy with a nodeSelector
+			// (apps/network/hostfirewall) filters traffic to the node itself.
+			hostFirewall: enabled: true
+			policyAuditMode: #cluster.network.policyAudit
+
 			nodeIPAM: enabled: true
 			defaultLBServiceIPAM: "nodeipam"
 			loadBalancer: acceleration: "disabled"

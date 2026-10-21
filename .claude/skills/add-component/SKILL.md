@@ -13,7 +13,9 @@ one artifact `<cluster>-<set>`). The set's controller picks the wrapper:
 | `flux`         | `HelmRepository`/`OCIRepository`/`GitRepository` + `HelmRelease` | `system` (default) |
 | `argo`         | Argo CD `Application` (helm source, `valuesObject`)              | `apps`             |
 
-Platform pieces (CNI, cert-manager, storage, operators) → `system`. User apps → `apps`.
+Platform pieces (CNI, cert-manager, storage, operators) → `system`, in a `*-system`
+namespace (other namespaces get a default-deny CiliumNetworkPolicy). CRs of operators
+from `system` (policies, issuers) → `policy`. User apps → `apps`, with their own CNP.
 A cluster can add sets (`cluster: config: sets: monitoring: controller: "flux"`) and move
 components between them (`cluster: components: x: set: "monitoring"`).
 

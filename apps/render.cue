@@ -3,7 +3,7 @@ package apps
 import "strings"
 
 // Namespace Argo CD runs in; its Applications live here.
-#ArgoNamespace: "argocd"
+#ArgoNamespace: "argo-system"
 
 // Renders components into one manifest set per #Cluster.sets entry. A
 // component's chart becomes a Flux source + HelmRelease or an Argo CD

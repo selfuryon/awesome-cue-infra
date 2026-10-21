@@ -10,6 +10,8 @@ import (
 	flux_helm_v2 "cue.dev/x/crd/fluxcd.io/helm/v2"
 	flux_kustomize_v1 "cue.dev/x/crd/fluxcd.io/kustomize/v1"
 	fluxoperator_v1 "github.com/selfuryon/awesome-cue-infra/crd/fluxoperator/v1"
+	cilium_v2 "github.com/selfuryon/awesome-cue-infra/crd/cilium/v2"
+	kyverno_v1 "cue.dev/x/crd/kyverno.io/v1"
 )
 
 // Kubernetes Types: cluster scoped
@@ -33,6 +35,12 @@ import (
 	}
 	clusterRole: [string]:        rbac_v1.#ClusterRole
 	clusterRoleBinding: [string]: rbac_v1.#ClusterRoleBinding
+
+	// Cilium
+	ciliumClusterwideNetworkPolicy: [string]: cilium_v2.#CiliumClusterwideNetworkPolicy
+
+	// Kyverno
+	clusterPolicy: [string]: kyverno_v1.#ClusterPolicy
 }
 
 // Kubernetes Types: namespace scoped
@@ -53,6 +61,9 @@ import (
 	deployment: [string]:     apps_v1.#Deployment
 	statefulSet: [string]:    apps_v1.#StatefulSet
 	daemonSet: [string]:      apps_v1.#DaemonSet
+
+	// Cilium
+	ciliumNetworkPolicy: [string]: cilium_v2.#CiliumNetworkPolicy
 
 	// Flux
 	gitRepository: [string]:  flux_source_v1.#GitRepository

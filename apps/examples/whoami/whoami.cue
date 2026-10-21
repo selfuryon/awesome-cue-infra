@@ -50,6 +50,18 @@ import "github.com/selfuryon/awesome-cue-infra/apps"
 					}
 				}
 			}
+			// The namespace is default-deny (apps/security/namespacepolicy): open
+			// the HTTP port to trusted networks (via the LoadBalancer) and the cluster.
+			ciliumNetworkPolicy: "allow-http": spec: {
+				endpointSelector: matchLabels: _labels
+				ingress: [{
+					fromCIDRSet: [for c in #cluster.network.trustedCIDRs {cidr: c}]
+					toPorts:     [{ports: [{port: "8080", protocol: "TCP"}]}]
+				}, {
+					fromEntities: ["cluster"]
+					toPorts:      [{ports: [{port: "8080", protocol: "TCP"}]}]
+				}]
+			}
 			service: whoami: spec: {
 				type:           "LoadBalancer"
 				ipFamilyPolicy: "PreferDualStack"

@@ -2,7 +2,7 @@
 apiVersion: v1
 data:
   apps: 45aa2cb20fdaa4d6@sha256:c63dc507b2b183f2c063d4fa21b417eee49926c1e1878847010a5e74e3ee5a32
-  system: 055cd816deafff7b@sha256:9aa0bef004d73369b6d33d8fbc649d4eff13724b0f8b8e7f853355e747451e6b
+  system: 3053105a39fa46ab@sha256:e6511ce41d406e9a2dc7c0a09fde4a168cf8b692244074c06d9458589081aed1
   policy: 0a7aebc9509dfa3c@sha256:a48ad62788835b043fc7a2fa01de102b3ad010fab455edaca0ff88c4afb8d2b9
 kind: ConfigMap
 metadata:
@@ -86,7 +86,7 @@ spec:
     mediaType: application/vnd.oci.image.layer.v1.tar+gzip
     operation: extract
   ref:
-    digest: sha256:9aa0bef004d73369b6d33d8fbc649d4eff13724b0f8b8e7f853355e747451e6b
+    digest: sha256:e6511ce41d406e9a2dc7c0a09fde4a168cf8b692244074c06d9458589081aed1
   url: oci://ghcr.io/selfuryon/awesome-cue-infra/alpha-01-system
   verify:
     matchOIDCIdentity:

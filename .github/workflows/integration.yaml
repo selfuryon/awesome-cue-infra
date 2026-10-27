@@ -238,7 +238,7 @@ jobs:
           head: ${{ runner.temp }}/source
           base: ${{ runner.temp }}/target
 
-      - uses: int128/comment-action@57130c0b08c149c4ba778ea2dbf5d9e2ac5d1917 # v1.79.0
+      - uses: int128/comment-action@304df51b76a99f2ba948f8d780d789b5ecc22893 # v1.80.0
         if: github.event_name == 'pull_request' && steps.diff.outputs.comment-body != ''
         with:
           token: ${{ steps.generate-token.outputs.token }}

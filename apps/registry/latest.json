@@ -35,7 +35,7 @@
       "name": "argo-cd",
       "datasource": "docker",
       "package": "ghcr.io/argoproj/argo-helm/argo-cd",
-      "version": "10.12.0"
+      "version": "10.12.1"
     },
     {
       "name": "whoami",

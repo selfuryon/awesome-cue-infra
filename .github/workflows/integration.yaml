@@ -233,7 +233,7 @@ jobs:
       - name: Generate diff
         id: diff
         if: github.event_name == 'pull_request'
-        uses: int128/diff-action@5808e847fcbe8a6c943e20d5b372204e99eb2de5 # v2.42.0
+        uses: int128/diff-action@aa894cae567a18b54a7c920fb17773db2c58f355 # v2.44.0
         with:
           head: ${{ runner.temp }}/source
           base: ${{ runner.temp }}/target

@@ -4,7 +4,7 @@
       "name": "flux-operator",
       "datasource": "docker",
       "package": "ghcr.io/controlplaneio-fluxcd/charts/flux-operator",
-      "version": "0.62.1"
+      "version": "0.64.0"
     },
     {
       "name": "flux",
